@@ -1,5 +1,5 @@
 export type AppFeature = {
-  slug: "interview-prep" | "job-board" | "github-resource-sweeper";
+  slug: "interview-prep" | "job-board" | "github";
   title: string;
   subtitle: string;
   description: string;
@@ -24,11 +24,11 @@ export const APP_FEATURES: AppFeature[] = [
     status: "UI scaffolded",
   },
   {
-    slug: "github-resource-sweeper",
+    slug: "github",
     title: "GitHub Resource Sweeper",
     subtitle: "Learn and contribute faster",
     description:
-      "Public repository explorer to surface contribution opportunities and learning resources with future AI summaries.",
-    status: "UI scaffolded",
+      "Public repository explorer powered by GitHub Search and AI summaries — repos matched to your programme, role, and skills.",
+    status: "Live",
   },
 ];

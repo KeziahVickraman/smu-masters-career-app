@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -71,6 +71,30 @@ export default function OnboardingPage() {
   const [errors2, setErrors2] = useState<Step2Errors>({});
   const [errors3, setErrors3] = useState<Step3Errors>({});
   const [submitErrors, setSubmitErrors] = useState<string[]>([]);
+
+  // ── Existing-profile detection & clear ──────────────────────────────────────
+  const [hasProfile, setHasProfile] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+
+  useEffect(() => {
+    setHasProfile(!!localStorage.getItem("smu_career_profile"));
+  }, []);
+
+  function clearProfile() {
+    localStorage.removeItem("smu_career_profile");
+    localStorage.removeItem("smu_saved_repos");
+    setHasProfile(false);
+    setConfirmClear(false);
+    // Reset the form so it's a clean slate
+    setStep(1);
+    setStep1({});
+    setStep2({ target_companies: [] });
+    setStep3(emptySkills());
+    setErrors1({});
+    setErrors2({});
+    setErrors3({});
+    setSubmitErrors([]);
+  }
 
   const title = useMemo(() => {
     if (step === 1) return "Programme & Industry";
@@ -217,7 +241,7 @@ export default function OnboardingPage() {
     // localStorage is client-only; this page is a client component by design.
     localStorage.setItem("smu_career_profile", JSON.stringify(profile));
 
-    router.push("/dashboard");
+    router.push("/");
   }
 
   return (
@@ -232,6 +256,50 @@ export default function OnboardingPage() {
             ← Back to dashboard
           </Link>
           <Badge tone="accent">Onboarding</Badge>
+        </div>
+
+        {/* Profile status — always visible at top */}
+        <div className="mt-5 flex items-center justify-between gap-4 rounded-md border border-border bg-surface px-4 py-3 text-sm">
+          <p className="text-ink-secondary">
+            {hasProfile ? (
+              <>
+                <span className="font-medium text-ink">You have a saved profile.</span>{" "}
+                Completing onboarding again will overwrite it.
+              </>
+            ) : (
+              <span className="text-ink-muted">No saved profile yet — fill in the steps below.</span>
+            )}
+          </p>
+
+          {hasProfile && (
+            confirmClear ? (
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="text-ink-muted">Remove profile?</span>
+                <button
+                  type="button"
+                  onClick={clearProfile}
+                  className="font-medium text-accent transition-colors hover:opacity-80"
+                >
+                  Yes, remove
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmClear(false)}
+                  className="text-ink-muted transition-colors hover:text-ink"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmClear(true)}
+                className="shrink-0 font-medium text-accent transition-colors hover:opacity-80"
+              >
+                Clear profile
+              </button>
+            )
+          )}
         </div>
 
         <section className="mt-8 content-narrow">

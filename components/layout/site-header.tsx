@@ -44,6 +44,12 @@ export function SiteHeader() {
               </Link>
             );
           })}
+          <Link
+            href="/onboarding"
+            className={`${navLinkClass(isNavActive(pathname, "/onboarding"))} hidden sm:flex`}
+          >
+            Profile
+          </Link>
         </nav>
       </div>
     </header>

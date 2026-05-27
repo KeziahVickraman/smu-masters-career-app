@@ -1,5 +1,6 @@
 import { ActivityFeed } from "@/components/layout/activity-feed";
 import { FeatureCard } from "@/components/layout/feature-card";
+import { HowToUse } from "@/components/layout/how-to-use";
 import { SiteHeader } from "@/components/layout/site-header";
 import { APP_FEATURES } from "@/lib/features";
 import { TODAY_ACTIVITY } from "@/lib/activity";
@@ -20,6 +21,11 @@ export default function Home() {
               business AI, and finance.
             </p>
           </section>
+
+          {/* How to use — collapsible, sits right below the hero */}
+          <div className="mt-6 animate-fade-up" style={{ animationDelay: "50ms" }}>
+            <HowToUse />
+          </div>
 
           <section className="mt-12 grid gap-5 md:grid-cols-3">
             {APP_FEATURES.map((feature, index) => (

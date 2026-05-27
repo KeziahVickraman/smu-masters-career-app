@@ -53,8 +53,10 @@ body {
   line-height: 1.5;
 }
 
-a {
-  color: inherit;
+@layer base {
+  a {
+    color: inherit;
+  }
 }
 
 .app-shell {
