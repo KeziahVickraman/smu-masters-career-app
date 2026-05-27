@@ -1,0 +1,164 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SMU Career Companion — User Profile Schema",
+  "version": "1.0.0",
+  "type": "object",
+  "required": ["user", "assessment_mode", "output_format"],
+  "properties": {
+    "user": {
+      "type": "object",
+      "required": ["programme", "current_industry", "current_role", "target_role", "years_experience", "skills_self_reported"],
+      "properties": {
+        "programme": {
+          "type": "string",
+          "enum": [
+            "MITB_Analytics",
+            "MITB_AI",
+            "MBAI",
+            "MSc_Finance",
+            "MSc_Accounting",
+            "MSc_Marketing",
+            "MSc_Management",
+            "MSc_Economics",
+            "MSc_Computational_Finance",
+            "LLM",
+            "MSc_OBHR"
+          ],
+          "description": "SMU Masters programme the user is enrolled in"
+        },
+        "programme_year": {
+          "type": "string",
+          "enum": ["Year 1", "Year 2", "Recent Graduate"],
+          "description": "Current stage in programme"
+        },
+        "current_industry": {
+          "type": "string",
+          "enum": [
+            "Financial Services",
+            "Banking",
+            "Consulting",
+            "Technology",
+            "Government / Public Sector",
+            "Healthcare",
+            "FMCG / Retail",
+            "Real Estate",
+            "Media & Communications",
+            "Legal",
+            "Education",
+            "Other"
+          ],
+          "description": "Industry the user currently works in or is targeting"
+        },
+        "target_industry": {
+          "type": "string",
+          "enum": [
+            "Financial Services",
+            "Banking",
+            "Consulting",
+            "Technology",
+            "Government / Public Sector",
+            "Healthcare",
+            "FMCG / Retail",
+            "Real Estate",
+            "Media & Communications",
+            "Legal",
+            "Education",
+            "Other"
+          ],
+          "description": "Industry the user wants to move into (can be same as current)"
+        },
+        "current_role": {
+          "type": "string",
+          "description": "User's current job title or most recent role",
+          "examples": ["Business Analyst", "Financial Analyst", "Software Engineer", "Consultant", "Fresh Graduate"]
+        },
+        "target_role": {
+          "type": "string",
+          "description": "Role the user is actively targeting post-graduation",
+          "examples": ["AI Product Manager", "Data Scientist", "Quant Analyst", "Strategy Consultant", "Risk Manager"]
+        },
+        "years_experience": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 30,
+          "description": "Total years of full-time work experience"
+        },
+        "skills_self_reported": {
+          "type": "object",
+          "description": "User's self-assessed skills grouped by category",
+          "properties": {
+            "data_and_analytics": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["Python", "R", "SQL", "Excel", "Power BI", "Tableau", "Spark", "dbt", "Pandas", "NumPy"]
+              }
+            },
+            "ai_and_ml": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["Machine Learning", "Deep Learning", "NLP", "Computer Vision", "LLMs / Prompt Engineering", "RAG", "MLOps", "TensorFlow", "PyTorch", "Scikit-learn"]
+              }
+            },
+            "finance": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["Financial Modelling", "Valuation", "Risk Management", "Derivatives", "Fixed Income", "Equity Research", "Bloomberg Terminal", "VBA", "Accounting", "Audit"]
+              }
+            },
+            "technology": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["React / Next.js", "Node.js", "Cloud (AWS/GCP/Azure)", "Docker", "Git", "APIs / REST", "TypeScript", "Java", "C++", "Databases"]
+              }
+            },
+            "soft_skills": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["Stakeholder Management", "Project Management", "Agile / Scrum", "Data Storytelling", "Executive Communication", "Client Facing", "Team Leadership", "Research"]
+              }
+            }
+          }
+        },
+        "interview_stage": {
+          "type": "string",
+          "enum": ["pre", "during", "post", "not_interviewing"],
+          "description": "Where the user currently is in their job search process"
+        },
+        "target_companies": {
+          "type": "array",
+          "items": { "type": "string" },
+          "maxItems": 5,
+          "description": "Up to 5 companies the user is targeting",
+          "examples": [["GIC", "Temasek", "DBS", "McKinsey", "Google"]]
+        }
+      }
+    },
+    "assessment_mode": {
+      "type": "string",
+      "enum": ["full", "interview_only", "skills_only", "risk_only"],
+      "description": "Which assessment modules to run"
+    },
+    "output_format": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["risk_score", "skills_gap", "interview_prep", "checklist", "github_resources", "job_listings", "resource_feed"]
+      },
+      "description": "Which output modules to generate for this user"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "session_id": { "type": "string" },
+        "onboarding_complete": { "type": "boolean" }
+      }
+    }
+  }
+}
