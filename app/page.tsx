@@ -12,13 +12,11 @@ export default function Home() {
       <div className="app-shell">
         <main>
           <section className="content-narrow animate-fade-up">
-            <h1 className="font-display text-[3rem] italic leading-[1.1] text-primary">
+            <h1 className="font-display text-[3rem] italic leading-[1.1] text-primary whitespace-nowrap">
               The career tool that actually respects your intelligence.
             </h1>
             <p className="mt-4 text-[0.9375rem] leading-7 text-ink-secondary">
-              Interview practice, Singapore job listings, and curated GitHub
-              resources — built for SMU Masters students in data analytics,
-              business AI, and finance.
+            The job market doesn't wait. Neither should your prep. Built for SMU Masters by SMU Masters students.
             </p>
           </section>
 
