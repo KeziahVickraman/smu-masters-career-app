@@ -10,12 +10,15 @@ import type {
   InterviewQuestion,
   QuestionCategory,
   QuestionDifficulty,
+  RepoEnrichmentContext,
   SavedRepo,
 } from "@/app/api/interview/questions/route";
+import { useProfiles } from "@/contexts/profile-context";
+import type { UserProfile } from "@/lib/schema";
 
 // ── localStorage keys ─────────────────────────────────────────────────────────
-const KEY_PROFILE = "smu_career_profile";
-const KEY_SAVED_REPOS = "smu_saved_repos";
+const KEY_SAVED_REPOS = "smu_saved_repos";    // curated repos (github-resource-sweeper page)
+const KEY_GITHUB_REPOS = "smu_github_repos";  // enriched repos (github live-search page)
 const KEY_QUESTIONS = "smu_interview_questions";
 const KEY_PROGRESS = "smu_interview_progress";
 
@@ -24,23 +27,8 @@ const VALID_CATEGORIES = new Set<string>(["Behavioural", "Technical", "Case", "C
 const VALID_DIFFICULTIES = new Set<string>(["Easy", "Medium", "Hard"]);
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type StoredProfile = {
-  user?: {
-    programme?: string;
-    programme_year?: string;
-    current_role?: string;
-    target_role?: string;
-    target_industry?: string;
-    current_industry?: string;
-    interview_stage?: string;
-    years_experience?: number;
-    skills_self_reported?: Record<string, string[]>;
-    target_companies?: string[];
-  };
-  metadata?: { updated_at?: string };
-};
-
 type QuestionsCache = {
+  profile_id: string;
   profile_updated_at: string;
   repo_signature: string;
   questions: InterviewQuestion[];
@@ -62,15 +50,6 @@ type QuickCheckState =
   | { status: "error"; message: string };
 
 // ── Storage helpers ───────────────────────────────────────────────────────────
-function readProfile(): StoredProfile | null {
-  try {
-    const raw = localStorage.getItem(KEY_PROFILE);
-    return raw ? (JSON.parse(raw) as StoredProfile) : null;
-  } catch {
-    return null;
-  }
-}
-
 function readQuestionsCache(): QuestionsCache | null {
   try {
     const raw = localStorage.getItem(KEY_QUESTIONS);
@@ -81,16 +60,29 @@ function readQuestionsCache(): QuestionsCache | null {
 }
 
 function readSavedRepos(): SavedRepo[] {
-  try {
-    const raw = localStorage.getItem(KEY_SAVED_REPOS);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed) || parsed.length === 0) return [];
-    if (typeof parsed[0] === "number") return []; // legacy id-only format
-    return parsed as SavedRepo[];
-  } catch {
-    return [];
+  const seen = new Set<string>();
+  const result: SavedRepo[] = [];
+
+  for (const key of [KEY_SAVED_REPOS, KEY_GITHUB_REPOS]) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed) || parsed.length === 0) continue;
+      if (typeof parsed[0] === "number") continue;
+      for (const r of parsed as SavedRepo[]) {
+        const name = typeof r.full_name === "string" ? r.full_name : "";
+        if (name && !seen.has(name)) {
+          seen.add(name);
+          result.push(r);
+        }
+      }
+    } catch {
+      // skip malformed key
+    }
   }
+
+  return result;
 }
 
 function repoSignature(repos: SavedRepo[]): string {
@@ -101,6 +93,7 @@ function repoSignature(repos: SavedRepo[]): string {
 }
 
 function writeQuestionsCache(
+  profileId: string,
   updatedAt: string,
   repoSig: string,
   questions: InterviewQuestion[],
@@ -108,6 +101,7 @@ function writeQuestionsCache(
   localStorage.setItem(
     KEY_QUESTIONS,
     JSON.stringify({
+      profile_id: profileId,
       profile_updated_at: updatedAt,
       repo_signature: repoSig,
       questions,
@@ -311,11 +305,13 @@ function QuestionCard({
   isPractised,
   onTogglePractised,
   animDelay,
+  repoEnrichment,
 }: {
   question: InterviewQuestion;
   isPractised: boolean;
   onTogglePractised: (id: string) => void;
   animDelay: number;
+  repoEnrichment?: RepoEnrichmentContext;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -406,6 +402,47 @@ function QuestionCard({
               <p className="text-[0.9375rem] leading-6 text-ink-secondary">
                 {question.answer_framework}
               </p>
+
+              {question.repo_reference && (
+                <div className="mt-4 border-t border-border pt-3">
+                  <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-widest text-ink-muted">
+                    Source
+                  </p>
+                  <a
+                    href={`https://github.com/${question.repo_reference}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 font-mono text-[12px] text-primary transition-colors hover:text-primary-light"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                      <path d="M6 1C3.239 1 1 3.239 1 6c0 2.209 1.434 4.082 3.421 4.745.25.046.341-.109.341-.241 0-.119-.004-.434-.007-.852-1.392.303-1.686-.671-1.686-.671-.228-.578-.556-.732-.556-.732-.454-.310.034-.304.034-.304.502.035.766.516.766.516.446.764 1.170.543 1.455.415.045-.323.174-.543.317-.668-1.110-.126-2.277-.555-2.277-2.470 0-.546.195-.992.515-1.342-.052-.126-.223-.635.049-1.323 0 0 .420-.134 1.375.513A4.795 4.795 0 016 3.802c.425.002.853.057 1.253.168.954-.647 1.374-.513 1.374-.513.273.688.101 1.197.050 1.323.321.350.514.796.514 1.342 0 1.921-1.170 2.343-2.284 2.466.180.155.340.461.340.929 0 .670-.006 1.211-.006 1.376 0 .134.089.290.342.241A5.003 5.003 0 0011 6c0-2.761-2.239-5-5-5z" fill="currentColor"/>
+                    </svg>
+                    {question.repo_reference}
+                  </a>
+
+                  {repoEnrichment?.interview_talking_points &&
+                    repoEnrichment.interview_talking_points.length > 0 && (
+                      <div className="mt-3">
+                        <p className="mb-1.5 font-mono text-[10px] text-ink-muted">
+                          Talking points used to ground this question:
+                        </p>
+                        <ul className="space-y-1.5">
+                          {repoEnrichment.interview_talking_points.map((tp, i) => (
+                            <li
+                              key={i}
+                              className="flex items-start gap-2 text-[0.8125rem] leading-5 text-ink-secondary"
+                            >
+                              <span className="mt-0.5 shrink-0 font-mono text-[10px] text-primary/40">
+                                {String(i + 1).padStart(2, "0")}
+                              </span>
+                              {tp}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -585,7 +622,7 @@ function ExportModal({
 
 // ── PDF generation — dynamic import, client-side only ─────────────────────────
 async function generatePDF(
-  profile: StoredProfile | null,
+  profile: UserProfile | null,
   questions: InterviewQuestion[],
   practised: Set<string>,
 ) {
@@ -817,7 +854,7 @@ async function generatePDF(
 
 // ── JSON export — native browser download ────────────────────────────────────
 function generateJSON(
-  profile: StoredProfile | null,
+  profile: UserProfile | null,
   questions: InterviewQuestion[],
   practised: Set<string>,
   savedRepos: SavedRepo[],
@@ -853,10 +890,12 @@ export default function InterviewPrepPage() {
   // ── Tab ───────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<PageTab>("full");
 
+  const { activeProfile, activeProfileId } = useProfiles();
+
   // ── Full prep state ───────────────────────────────────────────────────────
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
-  const [profile, setProfile] = useState<StoredProfile | null>(null);
   const [savedRepos, setSavedRepos] = useState<SavedRepo[]>([]);
+  const [contextSources, setContextSources] = useState<string[]>([]);
   const [category, setCategory] = useState<CategoryFilter>("All");
   const [practised, setPractised] = useState<Set<string>>(new Set());
   const [showExport, setShowExport] = useState(false);
@@ -871,14 +910,12 @@ export default function InterviewPrepPage() {
   const qcAbortRef = useRef<AbortController | null>(null);
 
   // ── Load full prep questions ───────────────────────────────────────────────
-  const loadQuestions = useCallback(async () => {
+  const loadQuestions = useCallback(async (p: typeof activeProfile, pid: string | null) => {
     // Abort any in-flight stream for this tab
     fullAbortRef.current?.abort();
     const ctl = new AbortController();
     fullAbortRef.current = ctl;
 
-    const p = readProfile();
-    setProfile(p);
     const repos = readSavedRepos();
     setSavedRepos(repos);
 
@@ -887,12 +924,14 @@ export default function InterviewPrepPage() {
       return;
     }
 
-    // Cache hit: skip API call if profile + repos unchanged
+    // Cache hit: skip API call if profile (id + timestamp) + repos unchanged
     const updatedAt = p.metadata?.updated_at ?? "";
     const repoSig = repoSignature(repos);
     const cache = readQuestionsCache();
     if (
       cache &&
+      pid &&
+      cache.profile_id === pid &&
       updatedAt &&
       cache.profile_updated_at === updatedAt &&
       cache.repo_signature === repoSig
@@ -955,7 +994,12 @@ export default function InterviewPrepPage() {
         return;
       }
 
-      if (updatedAt) writeQuestionsCache(updatedAt, repoSig, questions);
+      if (updatedAt && pid) writeQuestionsCache(pid, updatedAt, repoSig, questions);
+
+      // Read which repos were used as context from the response header
+      const csHeader = res.headers.get("X-Context-Sources");
+      setContextSources(csHeader ? (JSON.parse(csHeader) as string[]) : []);
+
       setLoadState({ status: "done", questions });
     } catch (err) {
       if (ctl.signal.aborted) return;
@@ -965,9 +1009,9 @@ export default function InterviewPrepPage() {
 
   useEffect(() => {
     setPractised(readProgress());
-    void loadQuestions();
+    void loadQuestions(activeProfile, activeProfileId);
     return () => { fullAbortRef.current?.abort(); };
-  }, [loadQuestions]);
+  }, [loadQuestions, activeProfile, activeProfileId]);
 
   // ── Toggle practised ──────────────────────────────────────────────────────
   const togglePractised = useCallback((id: string) => {
@@ -1045,20 +1089,20 @@ export default function InterviewPrepPage() {
     if (loadState.status !== "done") return;
     setExporting(true);
     try {
-      await generatePDF(profile, loadState.questions, practised);
+      await generatePDF(activeProfile, loadState.questions, practised);
     } catch (err) {
       console.error("PDF export failed:", err);
     } finally {
       setExporting(false);
       setShowExport(false);
     }
-  }, [loadState, profile, practised]);
+  }, [loadState, activeProfile, practised]);
 
   const handleExportJson = useCallback(() => {
     if (loadState.status !== "done") return;
-    generateJSON(profile, loadState.questions, practised, savedRepos);
+    generateJSON(activeProfile, loadState.questions, practised, savedRepos);
     setShowExport(false);
-  }, [loadState, profile, practised, savedRepos]);
+  }, [loadState, activeProfile, practised, savedRepos]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const isLoading = loadState.status === "loading";
@@ -1123,6 +1167,65 @@ export default function InterviewPrepPage() {
         {/* ── FULL PREP TAB ──────────────────────────────────────────────── */}
         {activeTab === "full" && (
           <>
+            {/* Saved repos indicator */}
+            <div
+              className="mt-4 animate-fade-up"
+              style={{ animationDelay: "40ms" }}
+            >
+              {savedRepos.length > 0 ? (
+                <div className="flex flex-col gap-1.5">
+                  <p className="flex items-center gap-2 text-sm text-ink-secondary">
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white">
+                      {savedRepos.length}
+                    </span>
+                    Generating questions based on{" "}
+                    <Link
+                      href="/github"
+                      className="font-medium text-primary hover:text-primary-light"
+                    >
+                      {savedRepos.length} saved {savedRepos.length === 1 ? "repo" : "repos"}
+                    </Link>
+                    {(() => {
+                      const enrichedCount = savedRepos.filter(
+                        (r) => r.enriched === true,
+                      ).length;
+                      return enrichedCount > 0 ? (
+                        <span className="text-ink-muted">
+                          ({enrichedCount} enriched)
+                        </span>
+                      ) : null;
+                    })()}
+                  </p>
+                  {contextSources.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 pl-6">
+                      <span className="font-mono text-[11px] text-ink-muted">
+                        grounded in:
+                      </span>
+                      {contextSources.map((src) => (
+                        <span
+                          key={src}
+                          className="rounded bg-primary/8 px-1.5 py-0.5 font-mono text-[11px] text-primary/80"
+                        >
+                          {src}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-ink-secondary">
+                  No saved repos —{" "}
+                  <Link
+                    href="/github"
+                    className="font-medium text-primary hover:text-primary-light"
+                  >
+                    save repos from GitHub Sweeper
+                  </Link>{" "}
+                  to personalise your questions
+                </p>
+              )}
+            </div>
+
             {/* Sub-header */}
             <div
               className="mt-6 animate-fade-up"
@@ -1153,7 +1256,7 @@ export default function InterviewPrepPage() {
                     <p className="text-[0.9375rem] text-ink-secondary">
                       {fullQuestions.length} questions personalised to{" "}
                       <strong className="font-medium text-ink">
-                        {profile?.user?.target_role}
+                        {activeProfile?.user?.target_role}
                       </strong>
                       {savedRepos.length > 0 && (
                         <>
@@ -1185,7 +1288,7 @@ export default function InterviewPrepPage() {
                     onClick={() => {
                       localStorage.removeItem(KEY_QUESTIONS);
                       setLoadState({ status: "loading" });
-                      void loadQuestions();
+                      void loadQuestions(activeProfile, activeProfileId);
                     }}
                     className="shrink-0 text-sm font-medium text-ink-muted transition-colors hover:text-ink"
                   >
@@ -1258,7 +1361,7 @@ export default function InterviewPrepPage() {
                   type="button"
                   onClick={() => {
                     setLoadState({ status: "loading" });
-                    void loadQuestions();
+                    void loadQuestions(activeProfile, activeProfileId);
                   }}
                   className="ml-3 font-medium text-primary hover:text-primary-light"
                 >
@@ -1381,6 +1484,13 @@ export default function InterviewPrepPage() {
                             isPractised={practised.has(q.id)}
                             onTogglePractised={togglePractised}
                             animDelay={i * 40}
+                            repoEnrichment={
+                              q.repo_reference
+                                ? savedRepos.find(
+                                    (r) => r.full_name === q.repo_reference,
+                                  )?.enrichment
+                                : undefined
+                            }
                           />
                         ))}
                         {/* Placeholder skeletons while more questions stream in */}
@@ -1443,7 +1553,7 @@ export default function InterviewPrepPage() {
                         }}
                         className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
                       >
-                        <option value="">Select a saved repo…</option>
+                        <option key="__placeholder__" value="">Select a saved repo…</option>
                         {savedRepos.map((r) => (
                           <option key={r.full_name} value={r.full_name}>
                             {r.full_name}

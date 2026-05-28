@@ -8,55 +8,74 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { GitHubRepo } from "@/app/api/github/search/route";
 import type { SummariseResponse } from "@/app/api/github/summarise/route";
+import type { RepoEnrichment } from "@/app/api/github/enrich/route";
+import { useProfiles } from "@/contexts/profile-context";
 
-// ─── Profile helpers ──────────────────────────────────────────────────────────
-type SkillsMap = Record<string, string[]>;
+// ── Enriched repo storage ─────────────────────────────────────────────────────
+// Note: uses smu_github_repos (not smu_saved_repos) to avoid conflicting with
+// the curated-sweeper page which writes the same key in a different format.
+const KEY_GITHUB_REPOS = "smu_github_repos";
 
-type StoredProfile = {
-  user?: {
-    programme?: string;
-    target_role?: string;
-    current_role?: string;
-    skills_self_reported?: SkillsMap;
+export interface EnrichedRepo {
+  id: string;           // "owner/repo" — primary key
+  full_name: string;    // alias of id, kept for backward compat with interview-prep consumers
+  name: string;
+  owner: string;
+  url: string;
+  stars: number;
+  language: string | null;
+  saved_at: string;
+  enriched: boolean;
+  enrichment: RepoEnrichment;
+  // optional fields passed to quick-check / context building
+  description?: string | null;
+  topics?: string[];
+}
+
+function emptyEnrichment(): RepoEnrichment {
+  return {
+    summary: "",
+    core_concepts: [],
+    tools_and_technologies: [],
+    difficulty: "Intermediate",
+    estimated_hours_to_complete: 0,
+    interview_talking_points: [],
+    portfolio_strength: "Medium",
+    why_relevant: "",
   };
-};
-
-function readProfile(): StoredProfile | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem("smu_career_profile");
-    return raw ? (JSON.parse(raw) as StoredProfile) : null;
-  } catch {
-    return null;
-  }
 }
 
-function flatSkills(skills?: SkillsMap): string[] {
-  if (!skills) return [];
-  return Object.values(skills).flat();
-}
-
-// ─── Saved repos helpers ──────────────────────────────────────────────────────
-function readSaved(): number[] {
+function readSavedRepos(): EnrichedRepo[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem("smu_saved_repos");
-    return raw ? (JSON.parse(raw) as number[]) : [];
+    const raw = localStorage.getItem(KEY_GITHUB_REPOS);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return (parsed as EnrichedRepo[]).filter(
+      (r) => typeof r.id === "string" && r.id,
+    );
   } catch {
     return [];
   }
 }
 
-function writeSaved(ids: number[]) {
+function writeSavedRepos(repos: EnrichedRepo[]) {
   if (typeof window === "undefined") return;
-  localStorage.setItem("smu_saved_repos", JSON.stringify(ids));
+  localStorage.setItem(KEY_GITHUB_REPOS, JSON.stringify(repos));
 }
 
-// ─── Filter type ──────────────────────────────────────────────────────────────
+// ── Skill helpers ─────────────────────────────────────────────────────────────
+function flatSkills(skills?: Record<string, string[]>): string[] {
+  if (!skills) return [];
+  return Object.values(skills).flat();
+}
+
+// ── Filter type ───────────────────────────────────────────────────────────────
 type Filter = "All" | "Beginner" | "Intermediate" | "Advanced" | "Saved";
 const FILTERS: Filter[] = ["All", "Beginner", "Intermediate", "Advanced", "Saved"];
 
-// ─── Difficulty badge tone ────────────────────────────────────────────────────
+// ── Difficulty badge tone ─────────────────────────────────────────────────────
 type BadgeTone = "success" | "warning" | "primary";
 
 function difficultyTone(level: GitHubRepo["difficulty"]): BadgeTone {
@@ -65,7 +84,7 @@ function difficultyTone(level: GitHubRepo["difficulty"]): BadgeTone {
   return "primary";
 }
 
-// ─── Skeleton card ────────────────────────────────────────────────────────────
+// ── Skeleton card ─────────────────────────────────────────────────────────────
 function RepoCardSkeleton() {
   return (
     <div className="card animate-pulse flex flex-col gap-3">
@@ -87,39 +106,46 @@ function RepoCardSkeleton() {
   );
 }
 
-// ─── AI summary state for a single card ──────────────────────────────────────
+// ── AI summary state ───────────────────────────────────────────────────────────
 type SummaryState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "done"; data: SummariseResponse }
   | { status: "error"; message: string };
 
-// ─── Individual repo card ─────────────────────────────────────────────────────
+// ── Individual repo card ──────────────────────────────────────────────────────
 function RepoCard({
   repo,
   isSaved,
+  isEnriching,
+  enrichmentFailed,
+  enrichmentData,
   onToggleSave,
+  onRetryEnrich,
   userProfile,
   animationDelay,
 }: {
   repo: GitHubRepo;
   isSaved: boolean;
-  onToggleSave: (id: number) => void;
-  userProfile: StoredProfile | null;
+  isEnriching: boolean;
+  enrichmentFailed: boolean;
+  enrichmentData: RepoEnrichment | null;
+  onToggleSave: (repo: GitHubRepo) => void;
+  onRetryEnrich: (repo: GitHubRepo) => void;
+  userProfile: { user?: { programme?: string; target_role?: string; current_role?: string; skills_self_reported?: Record<string, string[]> } } | null;
   animationDelay: number;
 }) {
   const [summary, setSummary] = useState<SummaryState>({ status: "idle" });
   const [expanded, setExpanded] = useState(false);
-  const hasTriggered = useRef(false);
+  const hasTriggeredRef = useRef(false);
 
-  // Difficulty comes from AI response once loaded, falls back to initial heuristic
   const displayDifficulty: GitHubRepo["difficulty"] =
     summary.status === "done" ? summary.data.difficulty : repo.difficulty;
 
   const handleExpand = useCallback(async () => {
     setExpanded(true);
-    if (hasTriggered.current) return;
-    hasTriggered.current = true;
+    if (hasTriggeredRef.current) return;
+    hasTriggeredRef.current = true;
     setSummary({ status: "loading" });
 
     try {
@@ -154,6 +180,7 @@ function RepoCard({
     } catch (err) {
       setSummary({ status: "error", message: String(err) });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repo, userProfile]);
 
   return (
@@ -173,10 +200,9 @@ function RepoCard({
         </div>
         <button
           type="button"
-          onClick={() => onToggleSave(repo.id)}
-          aria-label={isSaved ? "Remove from checklist" : "Save to checklist"}
+          onClick={() => onToggleSave(repo)}
+          aria-label={isSaved ? "Remove from portfolio" : "Save to portfolio"}
           className="shrink-0 text-sm font-medium transition-colors duration-150 text-ink-secondary hover:text-ink"
-          title={isSaved ? "Saved" : "Save to checklist"}
         >
           {isSaved ? "★ Saved" : "☆ Save"}
         </button>
@@ -193,14 +219,14 @@ function RepoCard({
         <span>{repo.owner}</span>
       </div>
 
-      {/* Description (always visible) */}
+      {/* Description */}
       {repo.description && (
         <p className="mt-3 text-[0.9375rem] leading-6 text-ink-secondary line-clamp-2">
           {repo.description}
         </p>
       )}
 
-      {/* Topics as skill tags */}
+      {/* Topics */}
       {repo.topics.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {repo.topics.slice(0, 6).map((topic) => (
@@ -211,7 +237,7 @@ function RepoCard({
         </div>
       )}
 
-      {/* Expand / AI summary section */}
+      {/* AI summary */}
       {!expanded ? (
         <button
           type="button"
@@ -227,7 +253,6 @@ function RepoCard({
               <div className="h-3 w-full rounded bg-surface-muted" />
               <div className="h-3 w-5/6 rounded bg-surface-muted" />
               <div className="mt-3 flex gap-2">
-                <div className="h-5 w-20 rounded-sm bg-surface-muted" />
                 <div className="h-5 w-20 rounded-sm bg-surface-muted" />
                 <div className="h-5 w-20 rounded-sm bg-surface-muted" />
               </div>
@@ -246,7 +271,7 @@ function RepoCard({
               {summary.data.skills_to_gain.length > 0 && (
                 <div className="mt-3">
                   <p className="mb-1.5 font-mono text-[11px] font-medium uppercase tracking-wider text-ink-muted">
-                    Skills you'd gain
+                    Skills you&apos;d gain
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {summary.data.skills_to_gain.map((skill) => (
@@ -258,6 +283,97 @@ function RepoCard({
                 </div>
               )}
             </>
+          )}
+        </div>
+      )}
+
+      {/* Enrichment panel — only shown when saved */}
+      {isSaved && isEnriching && (
+        <div className="mt-4 flex items-center gap-2 rounded-md border border-border bg-surface-muted/60 px-3 py-2.5 animate-pulse">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            className="shrink-0 text-primary/60"
+            aria-hidden="true"
+          >
+            <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2" />
+          </svg>
+          <p className="font-mono text-[11px] uppercase tracking-wider text-ink-muted">
+            Analysing repo…
+          </p>
+        </div>
+      )}
+
+      {isSaved && enrichmentFailed && !isEnriching && (
+        <div className="mt-4 flex items-center justify-between rounded-md border border-warning/30 bg-surface-muted/60 px-3 py-2.5">
+          <p className="text-[0.8125rem] text-ink-muted">
+            Analysis failed
+          </p>
+          <button
+            type="button"
+            onClick={() => onRetryEnrich(repo)}
+            className="text-[0.8125rem] font-medium text-primary transition-colors hover:text-primary-light"
+          >
+            Retry →
+          </button>
+        </div>
+      )}
+
+      {isSaved && !isEnriching && !enrichmentFailed && enrichmentData && (
+        <div className="mt-4 rounded-md border border-primary/15 bg-primary/3 p-3">
+          {/* Portfolio strength badge */}
+          <div className="mb-2 flex items-center justify-between">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-widest text-primary/70">
+              Interview intel
+            </p>
+            <Badge
+              tone={
+                enrichmentData.portfolio_strength === "High"
+                  ? "success"
+                  : enrichmentData.portfolio_strength === "Low"
+                  ? "warning"
+                  : "default"
+              }
+            >
+              {enrichmentData.portfolio_strength} portfolio signal
+            </Badge>
+          </div>
+
+          {/* Talking points */}
+          {enrichmentData.interview_talking_points.length > 0 && (
+            <ul className="mt-2 space-y-1.5">
+              {enrichmentData.interview_talking_points.map((tp, i) => (
+                <li
+                  key={i}
+                  className="flex items-start gap-2 text-[0.8125rem] leading-5 text-ink-secondary"
+                >
+                  <span className="mt-0.5 shrink-0 font-mono text-[10px] text-primary/50">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  {tp}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Core concepts */}
+          {enrichmentData.core_concepts.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {enrichmentData.core_concepts.slice(0, 6).map((c) => (
+                <Badge key={c} tone="info">
+                  {c}
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          {/* Why relevant */}
+          {enrichmentData.why_relevant && (
+            <p className="mt-3 text-[0.8125rem] leading-5 text-ink-muted italic">
+              {enrichmentData.why_relevant}
+            </p>
           )}
         </div>
       )}
@@ -278,19 +394,18 @@ function RepoCard({
           type="button"
           variant={isSaved ? "danger" : "primary"}
           size="compact"
-          onClick={() => onToggleSave(repo.id)}
+          onClick={() => onToggleSave(repo)}
           className="flex-1"
         >
-          {isSaved ? "Remove" : "Save to Checklist"}
+          {isSaved ? "Remove" : "Save to Portfolio"}
         </Button>
       </div>
     </Card>
   );
 }
 
-// ─── Error / empty states ─────────────────────────────────────────────────────
+// ── Empty state ────────────────────────────────────────────────────────────────
 function EmptyState({ filter, query }: { filter: Filter; query: string }) {
-  // No profile and no keyword search yet — prompt the user to get started
   if (!query && filter === "All") {
     return (
       <div className="col-span-2 py-20 text-center">
@@ -322,58 +437,63 @@ function EmptyState({ filter, query }: { filter: Filter; query: string }) {
       </p>
       {filter !== "Saved" && query && (
         <p className="mt-1 text-sm text-ink-muted">
-          Searched: <span className="font-mono text-[12px]">{query}</span>
+          Searched:{" "}
+          <span className="font-mono text-[12px]">{query}</span>
         </p>
       )}
     </div>
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ── Page ───────────────────────────────────────────────────────────────────────
 export default function GitHubResourceSweeperPage() {
+  const { activeProfile } = useProfiles();
+
   const [repos, setRepos] = useState<GitHubRepo[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("All");
-  const [savedIds, setSavedIds] = useState<number[]>([]);
+  const [savedRepos, setSavedRepos] = useState<EnrichedRepo[]>([]);
+  const [enrichingIds, setEnrichingIds] = useState<Set<string>>(new Set());
+  const [failedIds, setFailedIds] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
-  const [profile, setProfile] = useState<StoredProfile | null>(null);
   const [searchInput, setSearchInput] = useState("");
-  const profileRef = useRef<StoredProfile | null>(null);
 
-  const fetchRepos = useCallback(async (keywords: string) => {
-    const user = profileRef.current?.user;
-    const skills = flatSkills(user?.skills_self_reported);
-
-    const res = await fetch("/api/github/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        programme: user?.programme ?? "",
-        targetRole: user?.target_role ?? "",
-        skills,
-        keywords,
-      }),
-    });
-    const data = (await res.json()) as {
-      repos?: GitHubRepo[];
-      error?: string;
-      query?: string;
-    };
-    if (data.error) throw new Error(data.error);
-    return data;
+  // Load saved repos from localStorage on mount
+  useEffect(() => {
+    setSavedRepos(readSavedRepos());
   }, []);
 
-  // Initial load from profile
-  useEffect(() => {
-    const p = readProfile();
-    setProfile(p);
-    profileRef.current = p;
-    setSavedIds(readSaved());
+  const fetchRepos = useCallback(
+    async (keywords: string) => {
+      const user = activeProfile?.user;
+      const skills = flatSkills(user?.skills_self_reported);
 
-    // Only auto-fetch when the user has at least one profile element to anchor the query
-    const user = p?.user;
+      const res = await fetch("/api/github/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          programme: user?.programme ?? "",
+          targetRole: user?.target_role ?? "",
+          skills,
+          keywords,
+        }),
+      });
+      const data = (await res.json()) as {
+        repos?: GitHubRepo[];
+        error?: string;
+        query?: string;
+      };
+      if (data.error) throw new Error(data.error);
+      return data;
+    },
+    [activeProfile],
+  );
+
+  // Initial load: fetch repos when profile is available
+  useEffect(() => {
+    const user = activeProfile?.user;
     const hasProfileData = !!(
       user?.programme ||
       user?.target_role ||
@@ -385,6 +505,7 @@ export default function GitHubResourceSweeperPage() {
       return;
     }
 
+    setLoading(true);
     fetchRepos("")
       .then((data) => {
         setRepos(data.repos ?? []);
@@ -392,7 +513,7 @@ export default function GitHubResourceSweeperPage() {
       })
       .catch((err: unknown) => setError(String(err)))
       .finally(() => setLoading(false));
-  }, [fetchRepos]);
+  }, [fetchRepos, activeProfile]);
 
   const handleSearch = useCallback(async () => {
     const kw = searchInput.trim();
@@ -415,14 +536,13 @@ export default function GitHubResourceSweeperPage() {
     setError(null);
     setFilter("All");
 
-    const user = profileRef.current?.user;
+    const user = activeProfile?.user;
     const hasProfileData = !!(
       user?.programme ||
       user?.target_role ||
       flatSkills(user?.skills_self_reported).length > 0
     );
 
-    // No profile — just clear results and show the empty prompt
     if (!hasProfileData) {
       setRepos([]);
       setQuery("");
@@ -439,33 +559,153 @@ export default function GitHubResourceSweeperPage() {
     } finally {
       setSearching(false);
     }
-  }, [fetchRepos]);
+  }, [fetchRepos, activeProfile]);
 
-  const handleToggleSave = useCallback((id: number) => {
-    setSavedIds((prev) => {
-      const next = prev.includes(id)
-        ? prev.filter((x) => x !== id)
-        : [...prev, id];
-      writeSaved(next);
-      return next;
-    });
-  }, []);
+  // Enrichment logic — extracted so it can be called on save and on retry
+  const runEnrichment = useCallback(
+    async (repo: GitHubRepo) => {
+      const id = repo.full_name;
 
+      setEnrichingIds((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+      setFailedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+
+      try {
+        const res = await fetch("/api/github/enrich", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            owner: repo.owner,
+            repo: repo.name,
+            stars: repo.stars,
+            language: repo.language,
+            description: repo.description,
+            topics: repo.topics,
+            url: repo.html_url,
+            userProfile: activeProfile?.user
+              ? {
+                  programme: activeProfile.user.programme,
+                  target_role: activeProfile.user.target_role,
+                  current_role: activeProfile.user.current_role,
+                  target_industry: activeProfile.user.target_industry,
+                  skills_self_reported:
+                    activeProfile.user.skills_self_reported,
+                }
+              : undefined,
+          }),
+        });
+
+        if (res.ok) {
+          const enrichment = (await res.json()) as import("@/app/api/github/enrich/route").RepoEnrichment;
+          setSavedRepos((prev) => {
+            const next = prev.map((r) =>
+              r.id === id ? { ...r, enriched: true, enrichment } : r,
+            );
+            writeSavedRepos(next);
+            return next;
+          });
+        } else {
+          setFailedIds((prev) => new Set(prev).add(id));
+        }
+      } catch {
+        setFailedIds((prev) => new Set(prev).add(id));
+      } finally {
+        setEnrichingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+    },
+    [activeProfile],
+  );
+
+  const handleToggleSave = useCallback(
+    (repo: GitHubRepo) => {
+      const id = repo.full_name;
+      const isSaved = savedRepos.some((r) => r.id === id);
+
+      if (isSaved) {
+        setSavedRepos((prev) => {
+          const next = prev.filter((r) => r.id !== id);
+          writeSavedRepos(next);
+          return next;
+        });
+        setEnrichingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        setFailedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        return;
+      }
+
+      // Instantly save with enriched: false
+      const newEntry: EnrichedRepo = {
+        id,
+        full_name: id,
+        name: repo.name,
+        owner: repo.owner,
+        url: repo.html_url,
+        stars: repo.stars,
+        language: repo.language,
+        saved_at: new Date().toISOString(),
+        enriched: false,
+        enrichment: emptyEnrichment(),
+        description: repo.description,
+        topics: repo.topics,
+      };
+
+      setSavedRepos((prev) => {
+        const next = [...prev, newEntry];
+        writeSavedRepos(next);
+        return next;
+      });
+
+      // Kick off background enrichment
+      void runEnrichment(repo);
+    },
+    [savedRepos, runEnrichment],
+  );
+
+  const handleRetryEnrich = useCallback(
+    (repo: GitHubRepo) => {
+      void runEnrichment(repo);
+    },
+    [runEnrichment],
+  );
+
+  // Visible repos based on active filter
   const visibleRepos = repos.filter((repo) => {
-    if (filter === "Saved") return savedIds.includes(repo.id);
+    if (filter === "Saved")
+      return savedRepos.some((sr) => sr.id === repo.full_name);
     if (filter === "All") return true;
     return repo.difficulty === filter;
   });
 
-  // Derive display label from profile
-  const programmeLabel = profile?.user?.programme?.replace(/_/g, " ") ?? null;
-  const roleLabel = profile?.user?.target_role ?? null;
+  // Count helpers for filter buttons
+  const savedInResults = repos.filter((r) =>
+    savedRepos.some((sr) => sr.id === r.full_name),
+  ).length;
+
+  const programmeLabel = activeProfile?.user?.programme?.replace(/_/g, " ") ?? null;
+  const roleLabel = activeProfile?.user?.target_role ?? null;
 
   return (
     <>
       <SiteHeader />
       <main className="app-shell">
-        {/* Back link */}
         <Link
           href="/"
           className="text-sm font-medium text-ink-secondary transition-colors duration-150 hover:text-ink"
@@ -489,12 +729,16 @@ export default function GitHubResourceSweeperPage() {
                 {programmeLabel && (
                   <span className="font-mono text-[13px]">{programmeLabel}</span>
                 )}
-                . Click <em>Get AI summary</em> on any card for a personalised analysis.
+                . Save repos — Claude will analyse each one and surface
+                interview talking points tailored to your role.
               </>
             ) : (
               <>
                 Public repository explorer. Complete your{" "}
-                <Link href="/onboarding" className="text-primary underline-offset-2 hover:underline">
+                <Link
+                  href="/onboarding"
+                  className="text-primary underline-offset-2 hover:underline"
+                >
                   onboarding profile
                 </Link>{" "}
                 to get personalised results.
@@ -503,13 +747,49 @@ export default function GitHubResourceSweeperPage() {
           </p>
         </section>
 
+        {/* Saved repos summary strip — shown when any repos are saved */}
+        {savedRepos.length > 0 && (
+          <div
+            className="mt-5 flex items-center gap-3 rounded-md border border-primary/20 bg-primary/3 px-4 py-2.5 animate-fade-up"
+            style={{ animationDelay: "30ms" }}
+          >
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary font-mono text-[10px] font-semibold text-white">
+              {savedRepos.length}
+            </span>
+            <p className="text-[0.8125rem] text-ink-secondary">
+              <strong className="font-medium text-ink">
+                {savedRepos.length} {savedRepos.length === 1 ? "repo" : "repos"}
+              </strong>{" "}
+              saved to your portfolio
+              {savedRepos.filter((r) => r.enriched).length > 0 && (
+                <>
+                  {" · "}
+                  <span className="text-primary">
+                    {savedRepos.filter((r) => r.enriched).length} enriched
+                  </span>
+                </>
+              )}
+              {enrichingIds.size > 0 && (
+                <span className="ml-1 animate-pulse text-ink-muted">
+                  · analysing {enrichingIds.size}…
+                </span>
+              )}
+            </p>
+            <Link
+              href="/interview-prep"
+              className="ml-auto shrink-0 text-[0.8125rem] font-medium text-primary transition-colors hover:text-primary-light"
+            >
+              Use in Interview Prep →
+            </Link>
+          </div>
+        )}
+
         {/* Search bar */}
         <div
           className="mt-6 flex items-center gap-2 animate-fade-up"
           style={{ animationDelay: "50ms" }}
         >
           <div className="relative flex-1 max-w-xl">
-            {/* Search icon */}
             <svg
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted"
               width="14"
@@ -525,7 +805,9 @@ export default function GitHubResourceSweeperPage() {
               type="search"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { void handleSearch(); } }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void handleSearch();
+              }}
               placeholder="Search by keyword — e.g. transformer, NLP, portfolio…"
               aria-label="Search GitHub repositories by keyword"
               className="h-10 w-full rounded-md border border-border bg-surface pl-9 pr-10 text-sm text-ink placeholder:text-ink-muted focus:border-primary focus:outline-none transition-colors duration-150"
@@ -545,7 +827,7 @@ export default function GitHubResourceSweeperPage() {
           </div>
           <button
             type="button"
-            onClick={() => { void handleSearch(); }}
+            onClick={() => void handleSearch()}
             disabled={searching}
             className="inline-flex h-10 items-center justify-center rounded-md border border-primary bg-primary px-4 text-sm font-medium text-white transition-all duration-150 hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -564,8 +846,8 @@ export default function GitHubResourceSweeperPage() {
               f === "All"
                 ? repos.length
                 : f === "Saved"
-                  ? savedIds.filter((id) => repos.some((r) => r.id === id)).length
-                  : repos.filter((r) => r.difficulty === f).length;
+                ? savedInResults
+                : repos.filter((r) => r.difficulty === f).length;
 
             return (
               <button
@@ -594,7 +876,6 @@ export default function GitHubResourceSweeperPage() {
             );
           })}
 
-          {/* Query pill — shown when a search was made */}
           {!loading && query && (
             <span className="ml-auto font-mono text-[11px] text-ink-muted">
               query:{" "}
@@ -622,28 +903,39 @@ export default function GitHubResourceSweeperPage() {
           aria-label="GitHub repositories"
         >
           {loading || searching ? (
-            // Skeleton placeholders on initial load and keyword re-search
             Array.from({ length: 6 }).map((_, i) => (
               <RepoCardSkeleton key={i} />
             ))
           ) : visibleRepos.length === 0 ? (
             <EmptyState filter={filter} query={query} />
           ) : (
-            visibleRepos.map((repo, index) => (
-              <RepoCard
-                key={repo.id}
-                repo={repo}
-                isSaved={savedIds.includes(repo.id)}
-                onToggleSave={handleToggleSave}
-                userProfile={profile}
-                animationDelay={index * 50}
-              />
-            ))
+            visibleRepos.map((repo, index) => {
+              const savedEntry = savedRepos.find(
+                (sr) => sr.id === repo.full_name,
+              );
+              const isSaved = !!savedEntry;
+              return (
+                <RepoCard
+                  key={repo.id}
+                  repo={repo}
+                  isSaved={isSaved}
+                  isEnriching={enrichingIds.has(repo.full_name)}
+                  enrichmentFailed={failedIds.has(repo.full_name)}
+                  enrichmentData={
+                    savedEntry?.enriched ? savedEntry.enrichment : null
+                  }
+                  onToggleSave={handleToggleSave}
+                  onRetryEnrich={handleRetryEnrich}
+                  userProfile={activeProfile}
+                  animationDelay={index * 50}
+                />
+              );
+            })
           )}
         </section>
 
-        {/* Footer — onboarding nudge when no profile */}
-        {!loading && !profile?.user?.programme && repos.length > 0 && (
+        {/* Onboarding nudge when no profile */}
+        {!loading && !activeProfile?.user?.programme && repos.length > 0 && (
           <p
             className="mt-10 text-center text-sm text-ink-muted animate-fade-up"
             style={{ animationDelay: "200ms" }}

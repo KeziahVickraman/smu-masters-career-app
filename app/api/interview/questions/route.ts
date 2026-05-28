@@ -20,12 +20,25 @@ export interface QuestionsResponse {
 }
 
 // ── Request body types ───────────────────────────────────────────────────────
+export interface RepoEnrichmentContext {
+  summary?: string;
+  core_concepts?: string[];
+  tools_and_technologies?: string[];
+  difficulty?: string;
+  interview_talking_points?: string[];
+  portfolio_strength?: string;
+  why_relevant?: string;
+}
+
 export interface SavedRepo {
   full_name: string;
   description?: string | null;
   topics?: string[];
   language?: string | null;
   skills_to_gain?: string[];
+  // Enrichment fields — present on repos saved from the live GitHub search page
+  enriched?: boolean;
+  enrichment?: RepoEnrichmentContext;
 }
 
 interface RequestProfile {
@@ -72,6 +85,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // ── Partition repos — only enriched ones contribute to Claude context ──────
+  const enrichedRepos = savedRepos.filter(
+    (r) => r.enriched === true && r.enrichment,
+  );
+  const contextSources = enrichedRepos.map((r) => r.full_name);
+
   // ── Build context strings ──────────────────────────────────────────────────
   const allSkills = Object.values(profile.skills_self_reported ?? {}).flat();
 
@@ -96,25 +115,32 @@ User Profile:
 - Target companies: ${profile.target_companies?.join(", ") || "not specified"}
 `.trim();
 
+  // Only enriched repos are passed as context; unenriched repos are ignored
   const repoContext =
-    savedRepos.length > 0
-      ? `\n\nSaved GitHub Repositories (user's project portfolio):\n${savedRepos
-          .map(
-            (r) =>
-              `- ${r.full_name}${r.description ? `: ${r.description}` : ""}` +
-              (r.topics?.length ? ` [topics: ${r.topics.slice(0, 4).join(", ")}]` : "") +
-              (r.language ? ` [language: ${r.language}]` : "") +
-              (r.skills_to_gain?.length
-                ? ` [skills to gain: ${r.skills_to_gain.join(", ")}]`
-                : ""),
-          )
-          .join("\n")}`
+    enrichedRepos.length > 0
+      ? `\n\nSaved GitHub Repositories (enriched — use these for specific references):\n${enrichedRepos
+          .map((r) => {
+            const e = r.enrichment!;
+            const lines = [
+              `- ${r.full_name}`,
+              e.why_relevant ? `  Relevance: ${e.why_relevant}` : "",
+              e.core_concepts?.length
+                ? `  Core concepts: ${e.core_concepts.join(", ")}`
+                : "",
+              e.tools_and_technologies?.length
+                ? `  Tools: ${e.tools_and_technologies.join(", ")}`
+                : "",
+              e.interview_talking_points?.length
+                ? `  Interview talking points: ${e.interview_talking_points.join(" | ")}`
+                : "",
+            ];
+            return lines.filter(Boolean).join("\n");
+          })
+          .join("\n\n")}`
       : "";
 
   // ── Prompt ─────────────────────────────────────────────────────────────────
-  const systemPrompt = `You are a senior career coach specialising in SMU Masters students in Singapore targeting roles in finance, technology, and business AI.
-
-Generate exactly 20 personalised interview questions for this user. Every question must feel like it was written specifically for them — reference their actual role, industry, skills, or GitHub projects. No generic questions.
+  const systemPrompt = `You are a senior career coach for SMU Masters students in Singapore. Generate exactly 20 interview questions. For each question, reference specific repos, tools, or concepts from the user's saved repos where relevant. Do not generate generic questions. Every technical question must be grounded in the user's actual saved repo content where repos are available.
 
 Category breakdown (must hit these targets exactly):
 - Behavioural: 6 questions
@@ -126,7 +152,7 @@ Difficulty spread per category: mix Easy, Medium, and Hard.
 
 Answer framework guidelines:
 - Behavioural: STAR format — Situation, Task, Action, Result. Give 2-3 sentences of specific guidance on what to highlight given their background.
-- Technical: Structured step-by-step approach. Be specific to their skills (e.g. if they know Python, mention relevant libraries).
+- Technical: Structured step-by-step approach. Be specific to their skills and repos. Reference actual tools and concepts from their saved repos.
 - Case: Name the framework (MECE, hypothesis-driven, profitability tree, etc.) and how to apply it to their target industry.
 - Culture: Explain what the interviewer is actually assessing and what signal to give.
 
@@ -177,6 +203,7 @@ Generate the 20 personalised interview questions now. Return the JSON array only
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
       "X-Accel-Buffering": "no",
+      "X-Context-Sources": JSON.stringify(contextSources),
     },
   });
 }
