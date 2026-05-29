@@ -17,7 +17,7 @@ import { useProfiles } from "@/contexts/profile-context";
 import type { UserProfile } from "@/lib/schema";
 
 // ── localStorage keys ─────────────────────────────────────────────────────────
-const KEY_SAVED_REPOS = "smu_saved_repos";    // curated repos (github-resource-sweeper page)
+const KEY_SAVED_REPOS = "smu_saved_repos";    // legacy curated repos (read-only; sweeper page removed)
 const KEY_GITHUB_REPOS = "smu_github_repos";  // enriched repos (github live-search page)
 const KEY_QUESTIONS = "smu_interview_questions";
 const KEY_PROGRESS = "smu_interview_progress";
@@ -1147,7 +1147,7 @@ export default function InterviewPrepPage() {
             Interview Prep
           </h1>
           <p className="mt-1 text-[0.9375rem] text-ink-secondary">
-            Personalised questions for your role and programme, or a quick repo-based drill.
+            A full question bank for your role and programme, or a quick drill on one saved repo.
           </p>
         </div>
 
@@ -1157,10 +1157,10 @@ export default function InterviewPrepPage() {
           style={{ animationDelay: "30ms" }}
         >
           <button type="button" onClick={() => setActiveTab("full")} className={tabCls(activeTab === "full")}>
-            Full Prep
+            Question Bank
           </button>
           <button type="button" onClick={() => setActiveTab("quick")} className={tabCls(activeTab === "quick")}>
-            Quick Check
+            Repo Drill
           </button>
         </div>
 
@@ -1219,9 +1219,9 @@ export default function InterviewPrepPage() {
                     href="/github"
                     className="font-medium text-primary hover:text-primary-light"
                   >
-                    save repos from GitHub Sweeper
+                    save &amp; enrich repos in GitHub
                   </Link>{" "}
-                  to personalise your questions
+                  to ground these questions in your own portfolio
                 </p>
               )}
             </div>
@@ -1262,7 +1262,7 @@ export default function InterviewPrepPage() {
                         <>
                           {" — "}
                           <Link
-                            href="/github-resource-sweeper"
+                            href="/github"
                             className="text-ink-muted hover:text-ink"
                           >
                             {savedRepos.length} repo
@@ -1519,11 +1519,11 @@ export default function InterviewPrepPage() {
                   No saved repos yet
                 </p>
                 <p className="max-w-sm text-sm text-ink-muted">
-                  Save repos in the GitHub Sweeper — Claude will generate 6
+                  Save repos in GitHub — Claude will generate 6
                   targeted technical questions based on that repo&apos;s stack in
                   seconds.
                 </p>
-                <Button href="/github-resource-sweeper">Browse repos →</Button>
+                <Button href="/github">Browse repos →</Button>
               </div>
             ) : (
               <>

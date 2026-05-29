@@ -1,9 +1,8 @@
-import { ActivityFeed } from "@/components/layout/activity-feed";
 import { FeatureCard } from "@/components/layout/feature-card";
 import { HowToUse } from "@/components/layout/how-to-use";
+import { NextSteps } from "@/components/layout/next-steps";
 import { SiteHeader } from "@/components/layout/site-header";
 import { APP_FEATURES } from "@/lib/features";
-import { TODAY_ACTIVITY } from "@/lib/activity";
 
 export default function Home() {
   return (
@@ -16,7 +15,7 @@ export default function Home() {
               The career tool that actually respects your intelligence.
             </h1>
             <p className="mt-4 text-[0.9375rem] leading-7 text-ink-secondary">
-            The job market doesn't wait. Neither should your prep. Built for SMU Masters by SMU Masters students.
+            The job market doesn&apos;t wait. Neither should your prep. Built for SMU Masters by SMU Masters students.
             </p>
           </section>
 
@@ -35,7 +34,7 @@ export default function Home() {
             ))}
           </section>
 
-          <ActivityFeed items={TODAY_ACTIVITY} />
+          <NextSteps />
         </main>
       </div>
     </>

@@ -302,7 +302,7 @@ export default function ProfilePage() {
               </h1>
               <p className="mt-2 text-[0.9375rem] leading-7 text-ink-secondary">
                 Switch between career paths instantly — each profile drives a separate set of
-                interview questions, repo recommendations, and risk scores.
+                interview questions and repo recommendations.
               </p>
             </div>
             <div className="shrink-0 pt-1">
@@ -324,8 +324,8 @@ export default function ProfilePage() {
           <div className="mt-14 flex flex-col items-center gap-4 py-8 text-center animate-fade-up">
             <p className="text-[0.9375rem] font-medium text-ink">No profiles yet</p>
             <p className="max-w-sm text-sm text-ink-muted">
-              Create your first profile to personalise Interview Prep, GitHub resources, and
-              risk scoring to your programme and target role.
+              Create your first profile to personalise Interview Prep and GitHub resources to
+              your programme and target role.
             </p>
             <Button href="/onboarding">Create first profile →</Button>
           </div>

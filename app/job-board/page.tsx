@@ -1,16 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/layout/site-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useProfiles } from "@/contexts/profile-context";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Tab = "search" | "log";
 
 type ApplicationStatus = "Saved" | "Applied" | "Interview" | "Offer" | "Rejected";
+
+type JobSource = "mycareersfuture" | "jsearch" | "manual";
+
+interface JobSearchResult {
+  id: string;
+  role: string;
+  company: string;
+  location: string;
+  posted: string;
+  source: Exclude<JobSource, "manual">;
+  url: string;
+}
 
 interface JobLogEntry {
   id: string;
@@ -20,6 +33,11 @@ interface JobLogEntry {
   appliedDate: string;
   url?: string;
   notes?: string;
+  // Optional provenance fields — present on entries saved from search results
+  source?: JobSource;
+  location?: string;
+  posted?: string;
+  createdAt?: string;
 }
 
 interface AddForm {
@@ -51,40 +69,25 @@ const STATUS_TONE: Record<
   Rejected: "accent",
 };
 
-const PLACEHOLDER_ROWS = [
-  {
-    role: "Graduate Analyst, Risk Modelling",
-    company: "DBS Bank",
-    location: "Singapore",
-    posted: "2d ago",
-    tags: "Finance · Risk",
-    href: "#",
-  },
-  {
-    role: "Associate Product Manager Intern",
-    company: "Grab",
-    location: "Singapore · Hybrid",
-    posted: "5d ago",
-    tags: "PM · Ops",
-    href: "#",
-  },
-  {
-    role: "Data Science Associate",
-    company: "GIC",
-    location: "Singapore",
-    posted: "1w ago",
-    tags: "Analyst · Research",
-    href: "#",
-  },
-];
-
 // ── Storage helpers ───────────────────────────────────────────────────────────
-const LOG_KEY = "smu_job_log";
+const LOG_KEY = "smu_job_tracker";
+const LEGACY_LOG_KEY = "smu_job_log";
 
 function loadLog(): JobLogEntry[] {
   try {
     const raw = localStorage.getItem(LOG_KEY);
-    return raw ? (JSON.parse(raw) as JobLogEntry[]) : [];
+    if (raw) return JSON.parse(raw) as JobLogEntry[];
+
+    // One-time migration from the legacy key
+    const legacy = localStorage.getItem(LEGACY_LOG_KEY);
+    if (legacy) {
+      const entries = JSON.parse(legacy) as JobLogEntry[];
+      localStorage.setItem(LOG_KEY, legacy);
+      localStorage.removeItem(LEGACY_LOG_KEY);
+      return entries;
+    }
+
+    return [];
   } catch {
     return [];
   }
@@ -116,13 +119,28 @@ function emptyForm(): AddForm {
   };
 }
 
+function toLower(value: string) {
+  return value.toLowerCase().trim();
+}
+
 // ── Shared input class ────────────────────────────────────────────────────────
 const inputCls =
   "h-9 w-full rounded-md border border-border bg-surface px-3 text-sm text-ink placeholder:text-ink-muted focus:border-primary focus:outline-none";
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function JobBoardPage() {
+  const { activeProfile } = useProfiles();
+  const targetRole = activeProfile?.user.target_role ?? "";
+  const targetIndustry = activeProfile?.user.target_industry ?? "";
+
   const [tab, setTab] = useState<Tab>("search");
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [results, setResults] = useState<JobSearchResult[]>([]);
+  const [searchError, setSearchError] = useState("");
 
   // Log state
   const [entries, setEntries] = useState<JobLogEntry[]>([]);
@@ -133,6 +151,79 @@ export default function JobBoardPage() {
   useEffect(() => {
     setEntries(loadLog());
   }, []);
+
+  // ── Search ────────────────────────────────────────────────────────────────
+  async function runSearch() {
+    setSearchError("");
+
+    if (!targetRole && !targetIndustry && !searchQuery.trim()) {
+      setSearchError(
+        "Enter a search keyword, or activate a profile to personalise results.",
+      );
+      return;
+    }
+
+    setIsSearching(true);
+    setHasSearched(true);
+    try {
+      const params = new URLSearchParams({
+        search: searchQuery,
+        targetRole,
+        targetIndustry,
+      });
+      const res = await fetch(`/api/jobs/search?${params.toString()}`);
+      const data = (await res.json().catch(() => null)) as
+        | { jobs?: JobSearchResult[]; error?: string }
+        | null;
+
+      if (!res.ok || data?.error) {
+        setSearchError(data?.error || "Job search request failed.");
+        setResults([]);
+        return;
+      }
+
+      setResults(data?.jobs ?? []);
+    } catch {
+      setSearchError("Unable to fetch job listings at the moment.");
+      setResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }
+
+  // ── Tracker mutations ───────────────────────────────────────────────────────
+  const savedKeys = useMemo(
+    () =>
+      new Set(
+        entries.map((e) => `${toLower(e.role)}|${toLower(e.company)}|${toLower(e.url ?? "")}`),
+      ),
+    [entries],
+  );
+
+  function isAlreadySaved(job: JobSearchResult) {
+    return savedKeys.has(`${toLower(job.role)}|${toLower(job.company)}|${toLower(job.url)}`);
+  }
+
+  function saveFromSearch(job: JobSearchResult) {
+    if (isAlreadySaved(job)) return;
+
+    const entry: JobLogEntry = {
+      id: newId(),
+      role: job.role,
+      company: job.company,
+      status: "Saved",
+      appliedDate: "",
+      url: job.url || undefined,
+      source: job.source,
+      location: job.location,
+      posted: job.posted,
+      createdAt: new Date().toISOString(),
+    };
+
+    const next = [entry, ...entries];
+    setEntries(next);
+    saveLog(next);
+  }
 
   function addEntry() {
     const errors: Partial<Record<keyof AddForm, string>> = {};
@@ -149,6 +240,8 @@ export default function JobBoardPage() {
       company: form.company.trim(),
       status: form.status,
       appliedDate: form.appliedDate,
+      source: "manual",
+      createdAt: new Date().toISOString(),
       ...(form.url.trim() ? { url: form.url.trim() } : {}),
       ...(form.notes.trim() ? { notes: form.notes.trim() } : {}),
     };
@@ -197,7 +290,8 @@ export default function JobBoardPage() {
             Job Board
           </h1>
           <p className="mt-1 max-w-[800px] text-[0.9375rem] text-ink-secondary">
-            Browse Singapore roles and track your applications in one place.
+            Search Singapore roles matched to your profile, then track your
+            applications in one place.
           </p>
         </div>
 
@@ -228,79 +322,138 @@ export default function JobBoardPage() {
         {tab === "search" && (
           <>
             <Card className="mt-8 animate-fade-up" interactive={false}>
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <p className="text-xs font-medium uppercase tracking-[0.12em] text-ink-muted">
-                  Filters
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="secondary" size="compact">
-                    Singapore
-                  </Button>
-                  <Button type="button" variant="secondary" size="compact">
-                    Masters-relevant
-                  </Button>
-                  <Button type="button" variant="secondary" size="compact">
-                    Last 7 days
-                  </Button>
+              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div className="flex-1">
+                  <label
+                    htmlFor="job-search"
+                    className="mb-1.5 block text-xs font-medium text-ink-secondary"
+                  >
+                    Search jobs
+                  </label>
+                  <input
+                    id="job-search"
+                    type="search"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") runSearch();
+                    }}
+                    placeholder={
+                      activeProfile
+                        ? "Add keywords, e.g. graduate, internship..."
+                        : "Search roles or companies, e.g. data analyst..."
+                    }
+                    className="h-10 w-full max-w-xl rounded-md border border-border bg-surface px-3 text-sm text-ink placeholder:text-ink-muted focus:border-primary focus:outline-none"
+                  />
                 </div>
+                <Button type="button" onClick={runSearch} disabled={isSearching}>
+                  {isSearching ? "Searching..." : "Search"}
+                </Button>
               </div>
-              <div className="mt-4">
-                <input
-                  type="search"
-                  placeholder="Search roles or companies..."
-                  aria-label="Search jobs"
-                  className="h-10 w-full max-w-xl rounded-md border border-border bg-surface px-3 text-sm text-ink placeholder:text-ink-muted focus:border-primary focus:outline-none"
-                />
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Badge tone="default">Singapore</Badge>
+                {targetRole && <Badge tone="default">{targetRole}</Badge>}
+                {targetIndustry && <Badge tone="default">{targetIndustry}</Badge>}
+                {!activeProfile && (
+                  <Badge tone="muted">
+                    All roles — activate a profile to personalise
+                  </Badge>
+                )}
               </div>
+
+              {searchError && (
+                <p className="mt-4 text-sm text-accent">{searchError}</p>
+              )}
             </Card>
 
             <Card
               className="mt-8 overflow-hidden p-0 animate-fade-up"
               interactive={false}
             >
-              <div className="overflow-x-auto">
-                <table className="min-w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-surface-muted/60 text-left">
-                      {["Role", "Company", "Location", "Posted", "Tags", "Apply"].map(
-                        (h) => (
-                          <th
-                            key={h}
-                            className="px-6 py-3 font-mono text-[11px] font-medium uppercase tracking-wider text-ink-muted"
-                          >
-                            {h}
-                          </th>
-                        )
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {PLACEHOLDER_ROWS.map((row) => (
-                      <tr
-                        key={row.role}
-                        className="border-b border-border transition-colors duration-150 hover:bg-surface-muted"
-                      >
-                        <td className="px-6 py-4 font-medium text-ink">{row.role}</td>
-                        <td className="px-6 py-4 text-ink-secondary">{row.company}</td>
-                        <td className="px-6 py-4 text-ink-secondary">{row.location}</td>
-                        <td className="px-6 py-4 text-ink-secondary">{row.posted}</td>
-                        <td className="px-6 py-4 font-mono text-[11px] uppercase tracking-wider text-ink-secondary">
-                          {row.tags}
-                        </td>
-                        <td className="px-6 py-4">
-                          <a
-                            href={row.href}
-                            className="text-sm font-medium text-primary hover:text-primary-light"
-                          >
-                            Apply
-                          </a>
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-surface-muted/60 text-left">
+                        {["Role", "Company", "Location", "Posted", "Source", ""].map(
+                          (h, i) => (
+                            <th
+                              key={i}
+                              className="px-6 py-3 font-mono text-[11px] font-medium uppercase tracking-wider text-ink-muted"
+                            >
+                              {h}
+                            </th>
+                          ),
+                        )}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+                    </thead>
+                    <tbody>
+                      {results.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={6}
+                            className="px-6 py-8 text-center text-ink-muted"
+                          >
+                            {isSearching
+                              ? "Searching live listings..."
+                              : hasSearched
+                                ? "No matching roles found. Try different keywords."
+                                : "Hit Search to pull live Singapore listings for your profile."}
+                          </td>
+                        </tr>
+                      ) : (
+                        results.map((job) => {
+                          const saved = isAlreadySaved(job);
+                          return (
+                            <tr
+                              key={`${job.source}-${job.id}`}
+                              className="border-b border-border last:border-b-0 transition-colors duration-150 hover:bg-surface-muted"
+                            >
+                              <td className="px-6 py-4 font-medium text-ink">
+                                {job.url ? (
+                                  <a
+                                    href={job.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="hover:text-primary"
+                                  >
+                                    {job.role}
+                                  </a>
+                                ) : (
+                                  job.role
+                                )}
+                              </td>
+                              <td className="px-6 py-4 text-ink-secondary">
+                                {job.company}
+                              </td>
+                              <td className="px-6 py-4 text-ink-secondary">
+                                {job.location || "Singapore"}
+                              </td>
+                              <td className="px-6 py-4 text-ink-secondary">
+                                {job.posted || "—"}
+                              </td>
+                              <td className="px-6 py-4 font-mono text-[11px] uppercase tracking-wider text-ink-secondary">
+                                {job.source}
+                              </td>
+                              <td className="px-6 py-4">
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="compact"
+                                  onClick={() => saveFromSearch(job)}
+                                  disabled={saved}
+                                >
+                                  {saved ? "Saved" : "Save"}
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
           </>
         )}
 
@@ -504,18 +657,35 @@ export default function JobBoardPage() {
                             {entry.company}
                           </td>
 
-                          {/* Status — Badge overlaid with a transparent <select> */}
+                          {/* Status — colour badge styled as an obvious dropdown */}
                           <td className="px-5 py-3">
-                            <div className="relative inline-flex cursor-pointer">
+                            <div className="relative inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-surface py-1 pl-1.5 pr-2 transition-colors hover:border-border-strong">
                               <Badge tone={STATUS_TONE[entry.status]}>
                                 {entry.status}
                               </Badge>
+                              {/* Chevron signals this is editable */}
+                              <svg
+                                width="10"
+                                height="10"
+                                viewBox="0 0 10 10"
+                                fill="none"
+                                aria-hidden="true"
+                                className="pointer-events-none text-ink-muted"
+                              >
+                                <path
+                                  d="M2.5 4L5 6.5 7.5 4"
+                                  stroke="currentColor"
+                                  strokeWidth="1.2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
                               <select
                                 value={entry.status}
                                 onChange={(e) =>
                                   updateStatus(
                                     entry.id,
-                                    e.target.value as ApplicationStatus
+                                    e.target.value as ApplicationStatus,
                                   )
                                 }
                                 aria-label="Update status"
@@ -532,7 +702,7 @@ export default function JobBoardPage() {
 
                           {/* Date */}
                           <td className="px-5 py-3 text-sm text-ink-secondary">
-                            {entry.appliedDate}
+                            {entry.appliedDate || "—"}
                           </td>
 
                           {/* URL */}
@@ -590,7 +760,7 @@ export default function JobBoardPage() {
                   No applications logged yet
                 </p>
                 <p className="mt-1.5 text-sm text-ink-muted">
-                  Hit &ldquo;+ Add application&rdquo; above to start tracking.
+                  Save roles from Job Search, or hit &ldquo;+ Add application&rdquo; to log one manually.
                 </p>
               </div>
             ) : null}

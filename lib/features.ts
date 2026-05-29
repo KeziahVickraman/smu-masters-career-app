@@ -6,29 +6,31 @@ export type AppFeature = {
   status: string;
 };
 
+// Order reflects the intended pipeline: discover & enrich repos in GitHub first,
+// then turn them into interview questions, then track applications.
 export const APP_FEATURES: AppFeature[] = [
+  {
+    slug: "github",
+    title: "GitHub",
+    subtitle: "Learn and contribute faster",
+    description:
+      "Public repository explorer powered by GitHub Search and AI summaries — repos matched to your programme, role, and skills. Saved repos feed your interview questions.",
+    status: "Live",
+  },
   {
     slug: "interview-prep",
     title: "Interview Prep",
     subtitle: "Programme + role-specific practice",
     description:
-      "Mock interview workspace for Data Analytics, Business AI, and Finance students with question categories by role type.",
-    status: "UI scaffolded",
+      "Mock interview workspace for Data Analytics, Business AI, and Finance students, with questions grounded in the repos you save.",
+    status: "Live",
   },
   {
     slug: "job-board",
     title: "Job Board",
     subtitle: "Singapore-focused listings",
     description:
-      "Aggregated listings relevant to SMU Masters students from public job sources, ready for ingestion and filtering logic.",
-    status: "UI scaffolded",
-  },
-  {
-    slug: "github",
-    title: "GitHub Resource Sweeper",
-    subtitle: "Learn and contribute faster",
-    description:
-      "Public repository explorer powered by GitHub Search and AI summaries — repos matched to your programme, role, and skills.",
+      "Live Singapore listings matched to your target role and industry, with a built-in application tracker.",
     status: "Live",
   },
 ];

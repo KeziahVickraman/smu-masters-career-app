@@ -114,6 +114,9 @@ export type UserProfile = {
 
 export const DEFAULT_ASSESSMENT_MODE: AssessmentMode = "full";
 
-// Default output format comes from the schema’s enum order (no hardcoded module list).
-export const DEFAULT_OUTPUT_FORMAT: OutputFormat[] = OUTPUT_FORMATS.slice(0, 5);
+// Default output format follows the schema’s enum order, minus modules not yet built
+// (risk_score has no implementation — see jobs/interview/github features only).
+export const DEFAULT_OUTPUT_FORMAT: OutputFormat[] = OUTPUT_FORMATS.filter(
+  (f) => f !== "risk_score",
+).slice(0, 5);
 
