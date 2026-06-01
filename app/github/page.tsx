@@ -10,6 +10,7 @@ import type { GitHubRepo } from "@/app/api/github/search/route";
 import type { SummariseResponse } from "@/app/api/github/summarise/route";
 import type { RepoEnrichment } from "@/app/api/github/enrich/route";
 import { useProfiles } from "@/contexts/profile-context";
+import { SkillsSweeper } from "@/components/github/skills-sweeper";
 
 // ── Enriched repo storage ─────────────────────────────────────────────────────
 // Note: uses smu_github_repos (not smu_saved_repos) to avoid conflicting with
@@ -449,6 +450,11 @@ function EmptyState({ filter, query }: { filter: Filter; query: string }) {
 export default function GitHubResourceSweeperPage() {
   const { activeProfile } = useProfiles();
 
+  // Active tab: "repos" = existing Repo Sweeper, "skills" = new Skills Sweeper
+  const [view, setView] = useState<"repos" | "skills">("repos");
+  // Cross-feature bridge: skill name a "Find repos →" click is showing repos for
+  const [bridgeSkill, setBridgeSkill] = useState<string | null>(null);
+
   const [repos, setRepos] = useState<GitHubRepo[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -520,6 +526,7 @@ export default function GitHubResourceSweeperPage() {
     setSearching(true);
     setError(null);
     setFilter("All");
+    setBridgeSkill(null);
     try {
       const data = await fetchRepos(kw);
       setRepos(data.repos ?? []);
@@ -535,6 +542,7 @@ export default function GitHubResourceSweeperPage() {
     setSearchInput("");
     setError(null);
     setFilter("All");
+    setBridgeSkill(null);
 
     const user = activeProfile?.user;
     const hasProfileData = !!(
@@ -686,6 +694,27 @@ export default function GitHubResourceSweeperPage() {
     [runEnrichment],
   );
 
+  // Cross-feature bridge from Skills Sweeper: switch to Repo Sweeper, pre-load a
+  // keyword search for the gap skill, and auto-trigger it.
+  const handleFindRepos = useCallback(
+    (skill: string) => {
+      setView("repos");
+      setSearchInput(skill);
+      setBridgeSkill(skill);
+      setFilter("All");
+      setError(null);
+      setSearching(true);
+      fetchRepos(skill)
+        .then((data) => {
+          setRepos(data.repos ?? []);
+          setQuery(data.query ?? "");
+        })
+        .catch((err: unknown) => setError(String(err)))
+        .finally(() => setSearching(false));
+    },
+    [fetchRepos],
+  );
+
   // Visible repos based on active filter
   const visibleRepos = repos.filter((repo) => {
     if (filter === "Saved")
@@ -746,6 +775,75 @@ export default function GitHubResourceSweeperPage() {
             )}
           </p>
         </section>
+
+        {/* Tab toggle — Repo Sweeper / Skills Sweeper */}
+        <div
+          className="mt-6 flex items-center gap-2 animate-fade-up"
+          style={{ animationDelay: "20ms" }}
+          role="tablist"
+          aria-label="Sweeper view"
+        >
+          {(
+            [
+              { id: "repos", label: "Repo Sweeper" },
+              { id: "skills", label: "Skills Sweeper" },
+            ] as const
+          ).map((tab) => {
+            const isActive = view === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setView(tab.id)}
+                className={`inline-flex h-9 items-center justify-center rounded-md border px-4 text-sm font-medium transition-all duration-150 ${
+                  isActive
+                    ? "border-primary bg-primary text-white"
+                    : "border-border bg-surface text-ink-secondary hover:border-border-strong hover:text-ink"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Skills Sweeper tab ─────────────────────────────────────────── */}
+        {view === "skills" && (
+          <SkillsSweeper
+            activeProfile={activeProfile}
+            onFindRepos={handleFindRepos}
+          />
+        )}
+
+        {/* ── Repo Sweeper tab (existing) ────────────────────────────────── */}
+        {view === "repos" && (
+          <>
+        {/* Bridge banner — set when arriving from a Skills Sweeper gap skill */}
+        {bridgeSkill && (
+          <div
+            className="mt-5 flex items-center gap-3 rounded-md border border-primary/20 bg-primary/3 px-4 py-2.5 animate-fade-up"
+            style={{ animationDelay: "20ms" }}
+          >
+            <p className="text-[0.8125rem] text-ink-secondary">
+              Showing repos for:{" "}
+              <span className="font-mono text-[12px] font-medium text-primary">
+                {bridgeSkill}
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={() => setBridgeSkill(null)}
+              aria-label="Dismiss"
+              className="ml-auto shrink-0 text-ink-muted transition-colors duration-150 hover:text-ink"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path d="M1 1L11 11M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {/* Saved repos summary strip — shown when any repos are saved */}
         {savedRepos.length > 0 && (
@@ -949,6 +1047,8 @@ export default function GitHubResourceSweeperPage() {
             </Link>{" "}
             for programme-specific repos.
           </p>
+        )}
+          </>
         )}
       </main>
     </>
