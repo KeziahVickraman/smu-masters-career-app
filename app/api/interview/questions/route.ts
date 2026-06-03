@@ -1,9 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
+import type { TIHTopic } from "@/app/api/sources/tech-interview-handbook/route";
 
 // ── Exported types (imported by the page) ───────────────────────────────────
 export type QuestionCategory = "Behavioural" | "Technical" | "Case" | "Culture";
 export type QuestionDifficulty = "Easy" | "Medium" | "Hard";
+
+// Where a question came from. Generated = produced by Claude for this profile.
+export type QuestionOrigin = "Generated" | "Tech Interview Handbook";
 
 export interface InterviewQuestion {
   id: string;
@@ -12,6 +16,8 @@ export interface InterviewQuestion {
   difficulty: QuestionDifficulty;
   answer_framework: string;
   repo_reference?: string;
+  origin?: QuestionOrigin;
+  source_url?: string;
 }
 
 // Keep exported for JSON export consumers
@@ -57,6 +63,148 @@ interface RequestProfile {
 interface QuestionsRequest {
   profile: RequestProfile;
   savedRepos?: SavedRepo[];
+  // Which content sources are active for this session, e.g. ["profile", "saved_repos", "tih"].
+  sources?: string[];
+  // Ingested Tech Interview Handbook content (cached client-side in localStorage).
+  // Sent only when "tih" is among `sources`.
+  tihContent?: TIHTopic[];
+}
+
+// ── TIH merge helpers ────────────────────────────────────────────────────────
+// Flatten a question to a comparable word set for cheap semantic-similarity dedup.
+function wordSet(text: string): Set<string> {
+  return new Set(
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 2),
+  );
+}
+
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let inter = 0;
+  for (const w of a) if (b.has(w)) inter++;
+  return inter / (a.size + b.size - inter);
+}
+
+// Programme → which TIH categories / question types to prioritise.
+function tihPriorities(programme: string): {
+  categories: Set<string>;
+  types: Set<string>;
+} {
+  const p = programme;
+  if (p === "MITB_Analytics" || p === "MITB_AI" || p === "MBAI") {
+    return { categories: new Set(["coding", "algorithms"]), types: new Set(["Technical"]) };
+  }
+  if (p === "MSc_Finance" || p === "MSc_Computational_Finance") {
+    return { categories: new Set(["coding", "algorithms"]), types: new Set(["Technical", "Behavioural"]) };
+  }
+  if (p === "MSc_Management" || p === "MSc_OBHR") {
+    return { categories: new Set(["behavioral"]), types: new Set(["Behavioural", "Culture"]) };
+  }
+  // Default: a balanced spread.
+  return { categories: new Set(["behavioral", "coding"]), types: new Set(["Behavioural", "Technical"]) };
+}
+
+interface ScoredTihQuestion {
+  question: string;
+  category: QuestionCategory;
+  difficulty: QuestionDifficulty;
+  answer_framework: string;
+  source_url: string;
+  score: number;
+  words: Set<string>;
+}
+
+const VALID_CATS = new Set(["Behavioural", "Technical", "Case", "Culture"]);
+const VALID_DIFFS = new Set(["Easy", "Medium", "Hard"]);
+const MAX_TIH_QUESTIONS = 8;
+
+// Select, prioritise, and dedupe TIH questions for this profile.
+function selectTihQuestions(
+  tihContent: TIHTopic[],
+  profile: RequestProfile,
+): Omit<ScoredTihQuestion, "score" | "words">[] {
+  const { categories, types } = tihPriorities(profile.programme);
+  const relevanceWords = wordSet(
+    `${profile.target_role} ${profile.target_industry} ${profile.programme.replace(/_/g, " ")}`,
+  );
+
+  const scored: ScoredTihQuestion[] = [];
+  for (const topic of tihContent) {
+    const catMatch = categories.has(topic.category.toLowerCase());
+    for (const q of topic.questions) {
+      if (!q.question?.trim()) continue;
+      const words = wordSet(q.question);
+      let score = 0;
+      if (catMatch) score += 2;
+      if (types.has(q.type)) score += 2;
+      // Light relevance boost from role/industry/programme overlap.
+      score += jaccard(words, relevanceWords) * 3;
+      scored.push({
+        question: q.question.trim(),
+        category: VALID_CATS.has(q.type) ? (q.type as QuestionCategory) : "Technical",
+        difficulty: VALID_DIFFS.has(q.difficulty) ? (q.difficulty as QuestionDifficulty) : "Medium",
+        answer_framework: q.answer_framework?.trim() || "Use a structured, example-led approach.",
+        source_url: topic.url,
+        score,
+        words,
+      });
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+
+  // Dedupe TIH-vs-TIH by similarity, then cap.
+  const picked: ScoredTihQuestion[] = [];
+  for (const cand of scored) {
+    if (picked.some((p) => jaccard(p.words, cand.words) > 0.6)) continue;
+    picked.push(cand);
+    if (picked.length >= MAX_TIH_QUESTIONS) break;
+  }
+
+  return picked.map(({ question, category, difficulty, answer_framework, source_url }) => ({
+    question,
+    category,
+    difficulty,
+    answer_framework,
+    source_url,
+  }));
+}
+
+// Brace-counting extraction of top-level JSON objects from streamed Claude text,
+// used server-side to dedupe generated questions against TIH ones.
+function extractQuestionStrings(text: string): { question: string; words: Set<string> }[] {
+  const out: { question: string; words: Set<string> }[] = [];
+  let pos = 0;
+  while (pos < text.length) {
+    const start = text.indexOf("{", pos);
+    if (start === -1) break;
+    let depth = 0;
+    let inStr = false;
+    let esc = false;
+    let end = -1;
+    for (let i = start; i < text.length; i++) {
+      const ch = text[i];
+      if (esc) { esc = false; continue; }
+      if (ch === "\\" && inStr) { esc = true; continue; }
+      if (ch === '"') { inStr = !inStr; continue; }
+      if (inStr) continue;
+      if (ch === "{") depth++;
+      else if (ch === "}") { depth--; if (depth === 0) { end = i; break; } }
+    }
+    if (end === -1) break;
+    try {
+      const obj = JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
+      if (typeof obj.question === "string" && obj.question.trim()) {
+        out.push({ question: obj.question, words: wordSet(obj.question) });
+      }
+    } catch { /* skip fragment */ }
+    pos = end + 1;
+  }
+  return out;
 }
 
 // ── Route handler — streams raw JSON text back to client ──────────────────────
@@ -76,7 +224,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { profile, savedRepos = [] } = body;
+  const { profile, savedRepos = [], sources = [], tihContent = [] } = body;
 
   if (!profile?.target_role?.trim()) {
     return NextResponse.json(
@@ -85,8 +233,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // ── Tech Interview Handbook questions — selected/prioritised/deduped below ──
+  const tihActive = sources.includes("tih") && tihContent.length > 0;
+  const tihCandidates = tihActive
+    ? selectTihQuestions(tihContent, profile)
+    : [];
+
+  // Saved repos only contribute when explicitly enabled (default on when unset).
+  const reposActive =
+    sources.length === 0 || sources.includes("saved_repos");
+
   // ── Partition repos — only enriched ones contribute to Claude context ──────
-  const enrichedRepos = savedRepos.filter(
+  const enrichedRepos = (reposActive ? savedRepos : []).filter(
     (r) => r.enriched === true && r.enrichment,
   );
   const contextSources = enrichedRepos.map((r) => r.full_name);
@@ -187,12 +345,42 @@ Generate the 20 personalised interview questions now. Return the JSON array only
   const encoder = new TextEncoder();
   const readable = new ReadableStream({
     start(controller) {
+      // Accumulate the generated text so TIH questions can be deduped against
+      // it before being appended to the same stream.
+      let generatedText = "";
+
       anthropicStream.on("text", (delta) => {
+        generatedText += delta;
         controller.enqueue(encoder.encode(delta));
       });
+
       anthropicStream.once("finalMessage", () => {
+        if (tihCandidates.length > 0) {
+          // Dedupe TIH questions against the generated set by similarity.
+          const generated = extractQuestionStrings(generatedText);
+          let idx = 0;
+          for (const tq of tihCandidates) {
+            const words = wordSet(tq.question);
+            const isDup = generated.some((g) => jaccard(g.words, words) > 0.6);
+            if (isDup) continue;
+            idx++;
+            const obj = {
+              id: `tih${String(idx).padStart(2, "0")}`,
+              question: tq.question,
+              category: tq.category,
+              difficulty: tq.difficulty,
+              answer_framework: tq.answer_framework,
+              origin: "Tech Interview Handbook" as const,
+              source_url: tq.source_url,
+            };
+            // Leading comma keeps objects separated; the client parser is
+            // brace-based and ignores commas / array structure.
+            controller.enqueue(encoder.encode(`,\n${JSON.stringify(obj)}`));
+          }
+        }
         controller.close();
       });
+
       anthropicStream.once("error", (err: Error) => {
         controller.error(err);
       });

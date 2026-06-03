@@ -66,6 +66,26 @@ function writeSavedRepos(repos: EnrichedRepo[]) {
   localStorage.setItem(KEY_GITHUB_REPOS, JSON.stringify(repos));
 }
 
+// Map a persisted saved repo back into the GitHubRepo shape the feed renders.
+// Lets the Saved filter show repos straight from localStorage, regardless of
+// what the current live search results contain.
+function enrichedToRepo(sr: EnrichedRepo): GitHubRepo {
+  return {
+    id: 0, // unused for rendering; cards key off full_name
+    full_name: sr.full_name,
+    name: sr.name,
+    owner: sr.owner,
+    description: sr.description ?? null,
+    stars: sr.stars,
+    forks: 0,
+    open_issues: 0,
+    topics: sr.topics ?? [],
+    html_url: sr.url,
+    language: sr.language,
+    difficulty: sr.enrichment.difficulty,
+  };
+}
+
 // ── Skill helpers ─────────────────────────────────────────────────────────────
 function flatSkills(skills?: Record<string, string[]>): string[] {
   if (!skills) return [];
@@ -138,6 +158,7 @@ function RepoCard({
 }) {
   const [summary, setSummary] = useState<SummaryState>({ status: "idle" });
   const [expanded, setExpanded] = useState(false);
+  const [intelOpen, setIntelOpen] = useState(false);
   const hasTriggeredRef = useRef(false);
 
   const displayDifficulty: GitHubRepo["difficulty"] =
@@ -245,10 +266,30 @@ function RepoCard({
           onClick={handleExpand}
           className="mt-4 text-left text-sm font-medium text-primary transition-colors duration-150 hover:text-primary-light"
         >
-          Get AI summary →
+          {summary.status === "done" ? "Show AI summary →" : "Get AI summary →"}
         </button>
       ) : (
         <div className="mt-4 rounded-md border border-border bg-surface-muted/60 p-3">
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            aria-expanded={true}
+            className="mb-2 flex w-full items-center justify-between gap-2 text-left"
+          >
+            <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-ink-muted">
+              AI summary
+            </span>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 12 12"
+              fill="none"
+              className="shrink-0 rotate-180 text-ink-muted transition-transform"
+              aria-hidden="true"
+            >
+              <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
           {summary.status === "loading" && (
             <div className="space-y-2 animate-pulse">
               <div className="h-3 w-full rounded bg-surface-muted" />
@@ -324,11 +365,28 @@ function RepoCard({
 
       {isSaved && !isEnriching && !enrichmentFailed && enrichmentData && (
         <div className="mt-4 rounded-md border border-primary/15 bg-primary/3 p-3">
-          {/* Portfolio strength badge */}
-          <div className="mb-2 flex items-center justify-between">
-            <p className="font-mono text-[11px] font-semibold uppercase tracking-widest text-primary/70">
-              Interview intel
-            </p>
+          {/* Portfolio strength badge — header doubles as collapse toggle */}
+          <button
+            type="button"
+            onClick={() => setIntelOpen((o) => !o)}
+            aria-expanded={intelOpen}
+            className="flex w-full items-center justify-between gap-2 text-left"
+          >
+            <span className="flex items-center gap-2">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                fill="none"
+                className={`shrink-0 text-primary/60 transition-transform ${intelOpen ? "rotate-180" : ""}`}
+                aria-hidden="true"
+              >
+                <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-primary/70">
+                Interview intel
+              </span>
+            </span>
             <Badge
               tone={
                 enrichmentData.portfolio_strength === "High"
@@ -340,41 +398,45 @@ function RepoCard({
             >
               {enrichmentData.portfolio_strength} portfolio signal
             </Badge>
-          </div>
+          </button>
 
-          {/* Talking points */}
-          {enrichmentData.interview_talking_points.length > 0 && (
-            <ul className="mt-2 space-y-1.5">
-              {enrichmentData.interview_talking_points.map((tp, i) => (
-                <li
-                  key={i}
-                  className="flex items-start gap-2 text-[0.8125rem] leading-5 text-ink-secondary"
-                >
-                  <span className="mt-0.5 shrink-0 font-mono text-[10px] text-primary/50">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  {tp}
-                </li>
-              ))}
-            </ul>
-          )}
+          {intelOpen && (
+            <>
+              {/* Talking points */}
+              {enrichmentData.interview_talking_points.length > 0 && (
+                <ul className="mt-3 space-y-1.5">
+                  {enrichmentData.interview_talking_points.map((tp, i) => (
+                    <li
+                      key={i}
+                      className="flex items-start gap-2 text-[0.8125rem] leading-5 text-ink-secondary"
+                    >
+                      <span className="mt-0.5 shrink-0 font-mono text-[10px] text-primary/50">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      {tp}
+                    </li>
+                  ))}
+                </ul>
+              )}
 
-          {/* Core concepts */}
-          {enrichmentData.core_concepts.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {enrichmentData.core_concepts.slice(0, 6).map((c) => (
-                <Badge key={c} tone="info">
-                  {c}
-                </Badge>
-              ))}
-            </div>
-          )}
+              {/* Core concepts */}
+              {enrichmentData.core_concepts.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {enrichmentData.core_concepts.slice(0, 6).map((c) => (
+                    <Badge key={c} tone="info">
+                      {c}
+                    </Badge>
+                  ))}
+                </div>
+              )}
 
-          {/* Why relevant */}
-          {enrichmentData.why_relevant && (
-            <p className="mt-3 text-[0.8125rem] leading-5 text-ink-muted italic">
-              {enrichmentData.why_relevant}
-            </p>
+              {/* Why relevant */}
+              {enrichmentData.why_relevant && (
+                <p className="mt-3 text-[0.8125rem] leading-5 text-ink-muted italic">
+                  {enrichmentData.why_relevant}
+                </p>
+              )}
+            </>
           )}
         </div>
       )}
@@ -715,18 +777,16 @@ export default function GitHubResourceSweeperPage() {
     [fetchRepos],
   );
 
-  // Visible repos based on active filter
-  const visibleRepos = repos.filter((repo) => {
-    if (filter === "Saved")
-      return savedRepos.some((sr) => sr.id === repo.full_name);
-    if (filter === "All") return true;
-    return repo.difficulty === filter;
-  });
-
-  // Count helpers for filter buttons
-  const savedInResults = repos.filter((r) =>
-    savedRepos.some((sr) => sr.id === r.full_name),
-  ).length;
+  // Visible repos based on active filter. The Saved view reads from the
+  // localStorage-backed savedRepos dataset directly, so saved repos show even
+  // when they aren't part of the current live search results.
+  const visibleRepos: GitHubRepo[] =
+    filter === "Saved"
+      ? savedRepos.map(enrichedToRepo)
+      : repos.filter((repo) => {
+          if (filter === "All") return true;
+          return repo.difficulty === filter;
+        });
 
   const programmeLabel = activeProfile?.user?.programme?.replace(/_/g, " ") ?? null;
   const roleLabel = activeProfile?.user?.target_role ?? null;
@@ -944,7 +1004,7 @@ export default function GitHubResourceSweeperPage() {
               f === "All"
                 ? repos.length
                 : f === "Saved"
-                ? savedInResults
+                ? savedRepos.length
                 : repos.filter((r) => r.difficulty === f).length;
 
             return (
@@ -1014,7 +1074,7 @@ export default function GitHubResourceSweeperPage() {
               const isSaved = !!savedEntry;
               return (
                 <RepoCard
-                  key={repo.id}
+                  key={repo.full_name}
                   repo={repo}
                   isSaved={isSaved}
                   isEnriching={enrichingIds.has(repo.full_name)}

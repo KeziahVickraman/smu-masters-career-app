@@ -1,0 +1,184 @@
+[
+  {
+    "id": "wso_001",
+    "source": "Wall Street Oasis",
+    "source_badge": "WSO",
+    "category": "Technical",
+    "topic": "Valuation",
+    "target_programmes": ["MSc_Finance", "MSc_Accounting", "MSc_Computational_Finance", "MBAI"],
+    "target_roles": ["Investment Banker", "Financial Analyst", "Equity Research Analyst", "Valuation Analyst"],
+    "target_industries": ["Banking", "Financial Services"],
+    "difficulty": "Hard",
+    "question": "Walk me through a DCF.",
+    "answer_framework": "Three parts: (1) Project free cash flows for 5-10 years using revenue growth, EBIT margins, D&A, capex, and changes in working capital. (2) Calculate terminal value using either Gordon Growth Model (FCF × (1+g) / (WACC - g)) or Exit Multiple Method (EBITDA × industry multiple). (3) Discount everything back to present value using WACC. Sum of PV of FCFs + PV of terminal value = Enterprise Value. Subtract net debt to get Equity Value, divide by shares outstanding for price per share.",
+    "follow_up_questions": [
+      "What discount rate would you use and why?",
+      "How do you calculate WACC?",
+      "What are the weaknesses of a DCF?"
+    ],
+    "singapore_context": "MAS regulated entities often use DCF for fair value assessments under FRS 113."
+  },
+  {
+    "id": "wso_002",
+    "source": "Wall Street Oasis",
+    "source_badge": "WSO",
+    "category": "Technical",
+    "topic": "Valuation",
+    "target_programmes": ["MSc_Finance", "MSc_Computational_Finance"],
+    "target_roles": ["Investment Banker", "Financial Analyst", "Equity Research Analyst"],
+    "target_industries": ["Banking", "Financial Services"],
+    "difficulty": "Medium",
+    "question": "What are the three valuation methodologies and when would you use each?",
+    "answer_framework": "(1) DCF — intrinsic value, best when cash flows are predictable and stable. Used for mature companies. (2) Comparable Company Analysis (Comps) — market-based, uses EV/EBITDA, P/E multiples of similar public companies. Best for companies with clear public peers. (3) Precedent Transactions — M&A-based, uses multiples from past acquisitions. Includes control premium, so typically highest valuation. Use when company is being acquired. Football field chart shows all three ranges together.",
+    "follow_up_questions": [
+      "Which methodology typically gives the highest valuation?",
+      "What multiples would you use for a SaaS company?",
+      "How do you select comparable companies?"
+    ],
+    "singapore_context": "SGX-listed companies often trade at a discount to US peers — adjust comps accordingly."
+  },
+  {
+    "id": "wso_003",
+    "source": "Wall Street Oasis",
+    "source_badge": "WSO",
+    "category": "Technical",
+    "topic": "Accounting",
+    "target_programmes": ["MSc_Finance", "MSc_Accounting"],
+    "target_roles": ["Investment Banker", "Financial Analyst", "Auditor", "Controller"],
+    "target_industries": ["Banking", "Financial Services", "Consulting"],
+    "difficulty": "Medium",
+    "question": "Walk me through the three financial statements and how they link together.",
+    "answer_framework": "Income Statement shows revenue, expenses, and net income over a period. Balance Sheet shows assets, liabilities, and equity at a point in time. Cash Flow Statement shows cash inflows and outflows. Linkages: Net income from IS flows into retained earnings on BS and is the starting point of CFS. Depreciation added back on CFS (non-cash). CapEx on CFS reduces cash on BS and increases PP&E. Debt raised on CFS increases cash and liabilities on BS. Ending cash on CFS = cash on BS.",
+    "follow_up_questions": [
+      "If depreciation increases by $10, how does that affect the three statements?",
+      "What happens to the statements if inventory increases by $100?"
+    ],
+    "singapore_context": "Singapore companies report under SFRS (aligned with IFRS), not US GAAP — key difference in lease accounting under SFRS 16."
+  },
+  {
+    "id": "wso_004",
+    "source": "Wall Street Oasis",
+    "source_badge": "WSO",
+    "category": "Technical",
+    "topic": "M&A",
+    "target_programmes": ["MSc_Finance", "MSc_Computational_Finance"],
+    "target_roles": ["Investment Banker", "Corporate Development Analyst", "Strategy Analyst"],
+    "target_industries": ["Banking", "Financial Services", "Consulting"],
+    "difficulty": "Hard",
+    "question": "Is it better to use debt or equity to fund an acquisition?",
+    "answer_framework": "Debt is cheaper due to tax shield (interest is tax deductible) and no dilution to existing shareholders. However it increases leverage and financial risk. Equity avoids default risk but dilutes EPS and ownership. Decision depends on: (1) Current leverage ratio vs industry peers, (2) Target's cash flow stability (can it service debt?), (3) Interest rate environment, (4) Acquirer's credit rating, (5) Strategic rationale — transformative deals often use equity. Most deals use a mix. Accretion/dilution analysis determines EPS impact.",
+    "follow_up_questions": [
+      "When would an all-stock deal make sense?",
+      "What is a leveraged buyout?"
+    ],
+    "singapore_context": "Temasek and GIC portfolio companies often use structured financing with regional bank syndicates."
+  },
+  {
+    "id": "wso_005",
+    "source": "Wall Street Oasis",
+    "source_badge": "WSO",
+    "category": "Behavioural",
+    "topic": "Fit",
+    "target_programmes": ["MSc_Finance", "MSc_Accounting", "MSc_Computational_Finance", "MBAI", "MSc_Management"],
+    "target_roles": ["Investment Banker", "Financial Analyst", "Consultant", "Strategy Analyst"],
+    "target_industries": ["Banking", "Financial Services", "Consulting"],
+    "difficulty": "Medium",
+    "question": "Why investment banking?",
+    "answer_framework": "Structure around three pillars: (1) Intellectual interest — specific deals, transactions, or market events that sparked interest. Be specific, not generic. (2) Skills alignment — what you bring (financial modelling, analytical rigour, attention to detail) and what you want to develop. (3) Long-term vision — where IB fits in your career trajectory. Avoid clichés like 'I love finance and working hard.' Reference a specific deal the bank worked on.",
+    "follow_up_questions": [
+      "Why this bank specifically?",
+      "Where do you see yourself in 5 years?"
+    ],
+    "singapore_context": "Reference Singapore-specific deals — DBS acquisitions, Grab's SPAC, SGX listings."
+  },
+  {
+    "id": "wso_006",
+    "source": "Wall Street Oasis",
+    "source_badge": "WSO",
+    "category": "Technical",
+    "topic": "LBO",
+    "target_programmes": ["MSc_Finance", "MSc_Computational_Finance"],
+    "target_roles": ["Private Equity Analyst", "Investment Banker", "Corporate Finance Analyst"],
+    "target_industries": ["Banking", "Financial Services"],
+    "difficulty": "Hard",
+    "question": "Walk me through a basic LBO model.",
+    "answer_framework": "Five steps: (1) Determine purchase price (entry multiple × EBITDA). (2) Set capital structure — typically 60-70% debt, 30-40% equity. (3) Project company financials for 5 years — revenue growth, margin expansion, debt paydown. (4) Determine exit value (exit multiple × exit year EBITDA). (5) Calculate returns — equity value at exit minus equity invested, solve for IRR and MOIC. PE firms typically target 20%+ IRR and 2-3x MOIC. Key value drivers: purchase price, leverage, operational improvement, exit multiple.",
+    "follow_up_questions": [
+      "What makes a good LBO candidate?",
+      "How does leverage affect returns?"
+    ],
+    "singapore_context": "KKR, Warburg Pincus, and Bain Capital are active in Southeast Asia PE — reference regional deals."
+  },
+  {
+    "id": "wso_007",
+    "source": "Wall Street Oasis",
+    "source_badge": "WSO",
+    "category": "Technical",
+    "topic": "Risk",
+    "target_programmes": ["MSc_Finance", "MSc_Computational_Finance", "MBAI"],
+    "target_roles": ["Risk Analyst", "Quantitative Analyst", "Risk Manager"],
+    "target_industries": ["Banking", "Financial Services"],
+    "difficulty": "Hard",
+    "question": "What is Value at Risk (VaR) and what are its limitations?",
+    "answer_framework": "VaR estimates the maximum loss over a given time period at a given confidence level. E.g. 1-day 99% VaR of $1M means there is a 1% chance of losing more than $1M in a day. Three methods: Historical simulation, Variance-covariance, Monte Carlo. Limitations: (1) Assumes normal distribution — underestimates tail risk, (2) Does not capture what happens beyond the threshold (expected shortfall / CVaR is better), (3) Based on historical data — may not predict future crises, (4) Correlations break down in stress scenarios, (5) Not sub-additive in all cases.",
+    "follow_up_questions": [
+      "What is Expected Shortfall and why is it preferred under Basel III?",
+      "How did VaR fail during the 2008 financial crisis?"
+    ],
+    "singapore_context": "MAS Notice 637 requires Singapore banks to use internal models for market risk capital — VaR is central to this framework."
+  },
+  {
+    "id": "wso_008",
+    "source": "Wall Street Oasis",
+    "source_badge": "WSO",
+    "category": "Technical",
+    "topic": "Derivatives",
+    "target_programmes": ["MSc_Finance", "MSc_Computational_Finance"],
+    "target_roles": ["Quantitative Analyst", "Derivatives Trader", "Structurer", "Risk Analyst"],
+    "target_industries": ["Banking", "Financial Services"],
+    "difficulty": "Hard",
+    "question": "Explain the Black-Scholes model and its key assumptions.",
+    "answer_framework": "Black-Scholes prices European options using five inputs: stock price (S), strike price (K), time to expiry (T), risk-free rate (r), and volatility (σ). Formula: C = S·N(d1) - K·e^(-rT)·N(d2). Key assumptions: (1) Constant volatility — violated in practice (volatility smile), (2) No dividends, (3) European-style exercise only, (4) Log-normal distribution of returns, (5) No transaction costs, (6) Continuous trading possible. In practice, traders use implied volatility and adjust with Greeks (Delta, Gamma, Vega, Theta, Rho).",
+    "follow_up_questions": [
+      "What is implied volatility?",
+      "Why does the volatility smile exist?"
+    ],
+    "singapore_context": "SGX derivatives market is one of Asia's largest — iron ore futures, Nifty 50 options all priced using variants of BS."
+  },
+  {
+    "id": "wso_009",
+    "source": "Wall Street Oasis",
+    "source_badge": "WSO",
+    "category": "Behavioural",
+    "topic": "Strengths and Weaknesses",
+    "target_programmes": ["MSc_Finance", "MSc_Accounting", "MSc_Computational_Finance", "MBAI", "MSc_Management"],
+    "target_roles": ["All"],
+    "target_industries": ["Banking", "Financial Services", "Consulting"],
+    "difficulty": "Easy",
+    "question": "What is your greatest weakness?",
+    "answer_framework": "Choose a real weakness that is not a core job requirement. Structure: (1) State the weakness honestly, (2) Show self-awareness of its impact, (3) Describe concrete steps you are taking to address it, (4) Show progress. Example: 'I used to struggle with delegating — I preferred doing everything myself to ensure quality. I realised this was a bottleneck when leading a team project. I've since practised structured delegation with clear checkpoints, and my last project delivered on time with full team contribution.' Avoid humble-brags like 'I work too hard.'",
+    "follow_up_questions": [
+      "Give me an example of when this weakness affected your work.",
+      "How has that changed recently?"
+    ],
+    "singapore_context": null
+  },
+  {
+    "id": "wso_010",
+    "source": "Wall Street Oasis",
+    "source_badge": "WSO",
+    "category": "Technical",
+    "topic": "Credit",
+    "target_programmes": ["MSc_Finance", "MSc_Accounting"],
+    "target_roles": ["Credit Analyst", "Risk Analyst", "Loan Officer", "Fixed Income Analyst"],
+    "target_industries": ["Banking", "Financial Services"],
+    "difficulty": "Medium",
+    "question": "What are the key metrics you look at when analysing a company's creditworthiness?",
+    "answer_framework": "Five C's of credit: (1) Character — management track record, corporate governance. (2) Capacity — ability to repay: Debt/EBITDA (typically <3-4x for investment grade), Interest Coverage Ratio (EBIT/Interest, >3x preferred), Free Cash Flow. (3) Capital — equity cushion, leverage ratio. (4) Collateral — assets available as security. (5) Conditions — macroeconomic environment, industry cycle. Also look at: credit ratings (Moody's, S&P, Fitch), covenant compliance, debt maturity schedule, and liquidity ratios (current ratio, quick ratio).",
+    "follow_up_questions": [
+      "What Debt/EBITDA ratio would concern you?",
+      "How does Basel III affect how banks assess credit risk?"
+    ],
+    "singapore_context": "MAS guidelines on credit risk under Basel III are stricter than many jurisdictions — Pillar 1, 2, 3 all apply to Singapore banks."
+  }
+]

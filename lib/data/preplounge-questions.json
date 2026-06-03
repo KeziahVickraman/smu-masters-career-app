@@ -1,0 +1,192 @@
+[
+  {
+    "id": "pl_001",
+    "source": "PrepLounge",
+    "source_badge": "PL",
+    "category": "Case",
+    "topic": "Market Sizing",
+    "target_programmes": ["MSc_Management", "MSc_Economics", "MBAI", "MSc_Marketing"],
+    "target_roles": ["Management Consultant", "Strategy Analyst", "Business Analyst", "Product Manager"],
+    "target_industries": ["Consulting", "Technology", "Financial Services"],
+    "difficulty": "Medium",
+    "question": "How many ATMs are there in Singapore?",
+    "answer_framework": "Structure your estimate: (1) Population of Singapore ≈ 5.5M people. (2) Segment by likely ATM users — adults with bank accounts ≈ 80% = 4.4M. (3) Estimate ATM usage frequency — assume each ATM serves ≈ 200 transactions/day. (4) Estimate transactions per person per week ≈ 1 (most payments are now digital in Singapore). Total weekly transactions = 4.4M × 1 = 4.4M. Daily = 4.4M/7 ≈ 630K. ATMs needed = 630K / 200 ≈ 3,150. Cross-check: Singapore has ≈ 700 MRT stations, malls, banks — 3,000-4,000 ATMs is plausible. State assumptions clearly and sense-check at the end.",
+    "follow_up_questions": [
+      "How would your answer change if we included mobile ATMs?",
+      "What would cause this number to decline over the next 5 years?"
+    ],
+    "framework": "Segmentation → Usage Rate → Capacity → Cross-check",
+    "singapore_context": "PayNow and digital payments have significantly reduced ATM usage in Singapore — factor this into your assumptions."
+  },
+  {
+    "id": "pl_002",
+    "source": "PrepLounge",
+    "source_badge": "PL",
+    "category": "Case",
+    "topic": "Profitability",
+    "target_programmes": ["MSc_Management", "MSc_Economics", "MBAI", "MSc_Finance"],
+    "target_roles": ["Management Consultant", "Strategy Analyst", "Business Analyst"],
+    "target_industries": ["Consulting", "Financial Services", "FMCG / Retail"],
+    "difficulty": "Medium",
+    "question": "Your client is a supermarket chain in Singapore. Profits have declined 20% over the last two years despite revenue staying flat. What would you investigate?",
+    "answer_framework": "Profit = Revenue - Costs. Revenue is flat so focus on costs. Split costs into: (1) COGS — has cost of goods increased? Supplier price increases, commodity prices, import costs (SGD exchange rate). (2) Operating costs — rent (Singapore retail rents have risen significantly), labour costs (minimum wage increases, tight labour market), utilities. (3) One-time costs — store renovations, write-offs. Also check revenue quality — is revenue flat but mix has shifted to lower-margin products? Private label vs branded. Then look externally — have competitors changed pricing? Has consumer behaviour shifted (more online grocery shopping)? Prioritise by likely impact.",
+    "follow_up_questions": [
+      "Revenue is flat but we find that customer count is down 15% and average basket size is up 20%. What does that tell you?",
+      "What would you recommend to improve profitability?"
+    ],
+    "framework": "Profitability Tree → Revenue vs Cost → Internal vs External",
+    "singapore_context": "Cold Storage, FairPrice, Sheng Siong, and Don Don Donki are key Singapore supermarket players. FairPrice's social mission affects pricing strategy."
+  },
+  {
+    "id": "pl_003",
+    "source": "PrepLounge",
+    "source_badge": "PL",
+    "category": "Case",
+    "topic": "Market Entry",
+    "target_programmes": ["MSc_Management", "MSc_Marketing", "MBAI", "MSc_Economics"],
+    "target_roles": ["Management Consultant", "Strategy Analyst", "Business Development Manager"],
+    "target_industries": ["Consulting", "Technology", "Financial Services"],
+    "difficulty": "Hard",
+    "question": "A US fintech company wants to enter the Southeast Asian market. Should they, and if so, how?",
+    "answer_framework": "Structure: (1) Market attractiveness — SEA has 680M people, 70% underbanked, rising smartphone penetration, growing middle class. Regulatory environment varies widely by country. (2) Competitive landscape — Grab Financial, Sea Money, GoTo Financial are entrenched. Regional banks (DBS, OCBC) have digital arms. (3) Company fit — does the US fintech's product solve a SEA-specific problem? Remittances, SME lending, BNPL are high-growth. (4) Entry strategy — build vs buy vs partner. MAS licensing in Singapore as a beachhead is common. (5) Risks — regulatory (MAS, OJK, BSP all different), currency, localisation. Recommendation: Enter Singapore first (English, rule of law, MAS Digital Full Bank licence), then expand regionally.",
+    "follow_up_questions": [
+      "Which SEA country would you enter first and why?",
+      "How would you approach MAS licensing?"
+    ],
+    "framework": "Market Attractiveness → Competitive Landscape → Company Fit → Entry Mode → Risks",
+    "singapore_context": "MAS Digital Full Bank licences were awarded to GXS (Grab-Singtel) and MariBank (Sea). Understanding this regulatory context is critical."
+  },
+  {
+    "id": "pl_004",
+    "source": "PrepLounge",
+    "source_badge": "PL",
+    "category": "Case",
+    "topic": "Growth Strategy",
+    "target_programmes": ["MSc_Management", "MSc_Marketing", "MBAI"],
+    "target_roles": ["Management Consultant", "Strategy Analyst", "Product Manager", "Business Development Manager"],
+    "target_industries": ["Consulting", "Technology", "FMCG / Retail"],
+    "difficulty": "Medium",
+    "question": "A Singapore e-commerce platform has plateaued at $500M GMV. How would you identify growth opportunities?",
+    "answer_framework": "Use Ansoff Matrix: (1) Market penetration — grow share in existing segments. Are there underserved customer groups? Can we increase purchase frequency? Loyalty programmes, personalisation. (2) Market development — new geographies. SEA expansion — Malaysia, Indonesia, Vietnam. (3) Product development — new categories. If mainly electronics, add fashion, groceries, services. (4) Diversification — adjacent businesses. Fintech (BNPL), logistics, advertising revenue. Also analyse: customer acquisition vs retention costs, NPS, category margins. Which growth lever has best ROI and fits company capabilities? Recommend 1-2 concrete initiatives with clear metrics.",
+    "follow_up_questions": [
+      "GMV is growing but losses are widening. What would you look at?",
+      "How would you prioritise between geographic expansion and new categories?"
+    ],
+    "framework": "Ansoff Matrix → Customer Analysis → Unit Economics → Prioritisation",
+    "singapore_context": "Lazada, Shopee, and Qoo10 dominate Singapore e-commerce. Shopee's parent Sea Limited is headquartered in Singapore."
+  },
+  {
+    "id": "pl_005",
+    "source": "PrepLounge",
+    "source_badge": "PL",
+    "category": "Behavioural",
+    "topic": "Leadership",
+    "target_programmes": ["MSc_Management", "MBAI", "MSc_OBHR", "MSc_Marketing"],
+    "target_roles": ["Management Consultant", "Strategy Analyst", "Product Manager", "Team Lead"],
+    "target_industries": ["Consulting", "Technology", "Financial Services"],
+    "difficulty": "Medium",
+    "question": "Tell me about a time you led a team through a difficult situation.",
+    "answer_framework": "Use STAR: Situation — set the context briefly (team size, stakes, timeline). Task — what was your specific leadership responsibility. Action — focus here: how did you diagnose the problem, align the team, make decisions under uncertainty, handle conflict or low morale? What was your leadership style (directive vs collaborative)? Did you adapt? Result — quantify outcome where possible (delivered on time, team retention, client satisfaction). Reflect — what did you learn about your leadership style? Consulting interviewers want to see: structured thinking under pressure, ability to influence without authority, and self-awareness.",
+    "follow_up_questions": [
+      "What would you do differently?",
+      "How did you handle a team member who was underperforming?"
+    ],
+    "framework": "STAR + Reflection",
+    "singapore_context": null
+  },
+  {
+    "id": "pl_006",
+    "source": "PrepLounge",
+    "source_badge": "PL",
+    "category": "Case",
+    "topic": "Operations",
+    "target_programmes": ["MSc_Management", "MBAI", "MSc_Economics"],
+    "target_roles": ["Management Consultant", "Operations Analyst", "Supply Chain Analyst"],
+    "target_industries": ["Consulting", "FMCG / Retail", "Healthcare"],
+    "difficulty": "Hard",
+    "question": "A hospital in Singapore has average patient wait times of 6 hours in A&E. How would you reduce this to 3 hours?",
+    "answer_framework": "Map the patient flow: Arrival → Triage → Registration → Doctor Assessment → Tests/Investigations → Diagnosis → Treatment → Discharge. Identify bottlenecks using Little's Law: Wait time = WIP / Throughput. Investigate: (1) Demand side — when are peaks? Monday mornings, post-weekend. Can non-urgent cases be redirected to polyclinics? (2) Supply side — doctor and nurse capacity, room availability, test turnaround times. (3) Process — triage accuracy, parallel vs sequential steps, discharge process. Quick wins: fast-track lane for low-acuity patients, point-of-care testing, discharge lounge. Medium-term: demand prediction staffing, electronic patient flow system. Measure: track LOS by acuity category.",
+    "follow_up_questions": [
+      "You implement a fast-track lane and wait times drop to 4 hours but patient satisfaction falls. Why might this happen?",
+      "How would you build the business case for investing in an electronic patient flow system?"
+    ],
+    "framework": "Process Mapping → Bottleneck Analysis → Demand vs Supply → Quick Wins vs Long-term",
+    "singapore_context": "SGH, NUH, and TTSH are Singapore's main public hospitals. MOH has mandated wait time targets under the Healthcare 2030 plan."
+  },
+  {
+    "id": "pl_007",
+    "source": "PrepLounge",
+    "source_badge": "PL",
+    "category": "Case",
+    "topic": "Pricing",
+    "target_programmes": ["MSc_Management", "MSc_Marketing", "MBAI", "MSc_Economics"],
+    "target_roles": ["Management Consultant", "Strategy Analyst", "Product Manager", "Pricing Analyst"],
+    "target_industries": ["Consulting", "Technology", "FMCG / Retail"],
+    "difficulty": "Medium",
+    "question": "A SaaS company wants to increase prices by 20%. How would you advise them?",
+    "answer_framework": "Three pricing lenses: (1) Cost-based — are current prices covering costs with acceptable margin? What is the cost structure? (2) Value-based — what is the ROI customers get from the product? If a customer saves $100K/year using the software, $20K/year pricing has clear value headroom. (3) Competition-based — how do prices compare to alternatives? Is the product differentiated enough to command a premium? Then assess: customer segments (enterprise vs SMB react differently to price increases), churn risk (what does cohort data show about price sensitivity?), contract structure (annual vs monthly — easier to increase at renewal). Recommendation: segment-based rollout, grandfather existing customers, lead with value narrative not cost justification.",
+    "follow_up_questions": [
+      "Churn increases by 5% after the price increase. Was the decision still correct?",
+      "How would you structure a price increase for enterprise vs SMB customers differently?"
+    ],
+    "framework": "Cost → Value → Competition → Segmentation → Implementation",
+    "singapore_context": "Singapore SaaS companies often price in USD but bill in SGD — FX considerations matter for pricing decisions."
+  },
+  {
+    "id": "pl_008",
+    "source": "PrepLounge",
+    "source_badge": "PL",
+    "category": "Behavioural",
+    "topic": "Conflict Resolution",
+    "target_programmes": ["MSc_Management", "MBAI", "MSc_OBHR", "MSc_Marketing"],
+    "target_roles": ["Management Consultant", "Strategy Analyst", "Product Manager", "All"],
+    "target_industries": ["Consulting", "Technology", "Financial Services"],
+    "difficulty": "Easy",
+    "question": "Tell me about a time you disagreed with your manager or a senior stakeholder. How did you handle it?",
+    "answer_framework": "STAR structure. Key elements interviewers look for: (1) You raised the disagreement professionally, not passively accepted or aggressively challenged. (2) You used data and logic, not emotion. (3) You understood their perspective before pushing back. (4) You were willing to commit to the decision once made, even if you disagreed (disagree and commit). Show: intellectual courage + professional maturity + collaborative problem solving. Avoid: stories where you were clearly right and they were clearly wrong — show nuance. Best answers acknowledge the manager had valid reasons too.",
+    "follow_up_questions": [
+      "What would you do if the same situation happened again?",
+      "Have you ever had to implement a decision you fundamentally disagreed with?"
+    ],
+    "framework": "STAR + Disagree and Commit",
+    "singapore_context": null
+  },
+  {
+    "id": "pl_009",
+    "source": "PrepLounge",
+    "source_badge": "PL",
+    "category": "Case",
+    "topic": "Due Diligence",
+    "target_programmes": ["MSc_Management", "MSc_Finance", "MBAI"],
+    "target_roles": ["Management Consultant", "Strategy Analyst", "Corporate Development Analyst", "Investment Analyst"],
+    "target_industries": ["Consulting", "Financial Services", "Banking"],
+    "difficulty": "Hard",
+    "question": "Your client is considering acquiring a Southeast Asian logistics company. What would you investigate in due diligence?",
+    "answer_framework": "Structure due diligence across four workstreams: (1) Commercial DD — market size and growth, competitive position, customer concentration (if top 3 customers = 60% revenue, high risk), contract terms and renewal rates, pricing power. (2) Financial DD — quality of earnings (recurring vs one-time), working capital cycle, capex intensity (logistics is asset-heavy), debt structure, off-balance sheet liabilities. (3) Operational DD — fleet ownership vs leased, technology stack (TMS, WMS), driver workforce (employed vs gig — SEA regulatory risk), warehouse locations and lease terms. (4) Legal and Regulatory DD — licenses per country (logistics is locally regulated), labour law compliance, environmental liabilities, pending litigation. In SEA context: add political risk assessment per country, currency risk, related party transactions.",
+    "follow_up_questions": [
+      "You find that 40% of revenue comes from one customer whose contract expires in 6 months. How does this affect the deal?",
+      "What synergies would you look for if your client is also a logistics company?"
+    ],
+    "framework": "Commercial → Financial → Operational → Legal/Regulatory",
+    "singapore_context": "Grab, Ninja Van, J&T Express are key SEA logistics players. MAS requires regulatory approval for acquisitions above certain thresholds in financial services."
+  },
+  {
+    "id": "pl_010",
+    "source": "PrepLounge",
+    "source_badge": "PL",
+    "category": "Behavioural",
+    "topic": "Why Consulting",
+    "target_programmes": ["MSc_Management", "MBAI", "MSc_Economics", "MSc_Finance"],
+    "target_roles": ["Management Consultant", "Strategy Analyst"],
+    "target_industries": ["Consulting"],
+    "difficulty": "Easy",
+    "question": "Why consulting, and why this firm specifically?",
+    "answer_framework": "Three-part structure: (1) Why consulting — exposure to diverse industries and problems, accelerated learning curve, structured problem-solving frameworks, impact at senior client levels early in career. Be specific about what draws you — strategy work, digital transformation, a specific practice area. (2) Why now — how does consulting fit your career stage? Coming from an SMU Masters, you bring X and want to build Y. (3) Why this firm — research is non-negotiable. Reference: specific practice areas (McKinsey Digital, BCG X, Bain Private Equity practice), recent projects in Singapore or SEA, culture differences (Bain's team culture vs McKinsey's up-or-out). Speak to someone at the firm before the interview if possible.",
+    "follow_up_questions": [
+      "What practice area interests you most and why?",
+      "Where do you see yourself after 3 years in consulting?"
+    ],
+    "framework": "Why Consulting → Why Now → Why This Firm",
+    "singapore_context": "McKinsey, BCG, Bain, Oliver Wyman, and Roland Berger all have Singapore offices with SEA focus. Oliver Wyman is particularly strong in financial services in Singapore."
+  }
+]

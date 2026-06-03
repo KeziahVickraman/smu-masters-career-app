@@ -13,6 +13,7 @@ import type {
   RepoEnrichmentContext,
   SavedRepo,
 } from "@/app/api/interview/questions/route";
+import type { TIHIngestResponse } from "@/app/api/sources/tech-interview-handbook/route";
 import { useProfiles } from "@/contexts/profile-context";
 import type { UserProfile } from "@/lib/schema";
 
@@ -21,6 +22,11 @@ const KEY_SAVED_REPOS = "smu_saved_repos";    // legacy curated repos (read-only
 const KEY_GITHUB_REPOS = "smu_github_repos";  // enriched repos (github live-search page)
 const KEY_QUESTIONS = "smu_interview_questions";
 const KEY_PROGRESS = "smu_interview_progress";
+const KEY_SOURCE_TIH = "smu_source_tih";      // ingested Tech Interview Handbook content
+
+// ── Content sources ─────────────────────────────────────────────────────────
+type SourceId = "profile" | "saved_repos" | "tih";
+const TIH_STALE_MS = 7 * 24 * 60 * 60 * 1000; // re-fetch TIH if cache older than 7 days
 
 // ── Client-side validation sets ───────────────────────────────────────────────
 const VALID_CATEGORIES = new Set<string>(["Behavioural", "Technical", "Case", "Culture"]);
@@ -31,6 +37,7 @@ type QuestionsCache = {
   profile_id: string;
   profile_updated_at: string;
   repo_signature: string;
+  sources_signature: string;
   questions: InterviewQuestion[];
 };
 
@@ -96,6 +103,7 @@ function writeQuestionsCache(
   profileId: string,
   updatedAt: string,
   repoSig: string,
+  sourcesSig: string,
   questions: InterviewQuestion[],
 ) {
   localStorage.setItem(
@@ -104,9 +112,46 @@ function writeQuestionsCache(
       profile_id: profileId,
       profile_updated_at: updatedAt,
       repo_signature: repoSig,
+      sources_signature: sourcesSig,
       questions,
     } satisfies QuestionsCache),
   );
+}
+
+// ── Tech Interview Handbook cache ─────────────────────────────────────────────
+function readTihCache(): TIHIngestResponse | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(KEY_SOURCE_TIH);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as TIHIngestResponse;
+    return Array.isArray(parsed.content) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeTihCache(data: TIHIngestResponse) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(KEY_SOURCE_TIH, JSON.stringify(data));
+}
+
+function isTihStale(cache: TIHIngestResponse | null): boolean {
+  if (!cache?.fetched_at) return true;
+  const t = new Date(cache.fetched_at).getTime();
+  if (Number.isNaN(t)) return true;
+  return Date.now() - t > TIH_STALE_MS;
+}
+
+// Signature of the active sources — included in the questions cache key so that
+// toggling a source or refreshing TIH busts the cached question set.
+function sourcesSignature(
+  sources: Set<SourceId>,
+  tih: TIHIngestResponse | null,
+): string {
+  const base = [...sources].sort().join(",");
+  const tihPart = sources.has("tih") && tih ? tih.fetched_at : "";
+  return `${base}|${tihPart}`;
 }
 
 function readProgress(): Set<string> {
@@ -189,6 +234,14 @@ function normalizeQuestion(
         ? String(q.answer_framework).trim()
         : "Use a structured approach to answer clearly and concisely.",
     ...(q.repo_reference ? { repo_reference: String(q.repo_reference) } : {}),
+    // Default to "Generated"; TIH-appended objects carry origin + source_url.
+    origin:
+      q.origin === "Tech Interview Handbook"
+        ? "Tech Interview Handbook"
+        : "Generated",
+    ...(typeof q.source_url === "string" && q.source_url
+      ? { source_url: String(q.source_url) }
+      : {}),
   };
 }
 
@@ -278,6 +331,56 @@ function tabCls(active: boolean) {
   }`;
 }
 
+// ── Toggle switch — include/exclude a content source ──────────────────────────
+function ToggleSwitch({
+  on,
+  disabled,
+  onToggle,
+  label,
+}: {
+  on: boolean;
+  disabled?: boolean;
+  onToggle: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onToggle}
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors duration-150 ${
+        on ? "border-primary bg-primary" : "border-border-strong bg-surface-muted"
+      } ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+    >
+      <span
+        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-150 ${
+          on ? "translate-x-4" : "translate-x-0.5"
+        }`}
+      />
+    </button>
+  );
+}
+
+// ── Source badge — shown on any question sourced from Tech Interview Handbook ──
+function SourceBadge({ url }: { url?: string }) {
+  const badge = <Badge tone="muted">TIH ↗</Badge>;
+  if (!url) return badge;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Sourced from the Tech Interview Handbook — view original page"
+      className="transition-opacity duration-150 hover:opacity-80"
+    >
+      {badge}
+    </a>
+  );
+}
+
 // ── Skeleton card ─────────────────────────────────────────────────────────────
 function QuestionSkeleton() {
   return (
@@ -325,6 +428,9 @@ function QuestionCard({
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={CATEGORY_TONE[question.category]}>{question.category}</Badge>
           <Badge tone={DIFFICULTY_TONE[question.difficulty]}>{question.difficulty}</Badge>
+          {question.origin === "Tech Interview Handbook" && (
+            <SourceBadge url={question.source_url} />
+          )}
         </div>
         <button
           type="button"
@@ -902,6 +1008,18 @@ export default function InterviewPrepPage() {
   const [exporting, setExporting] = useState(false);
   const fullAbortRef = useRef<AbortController | null>(null);
 
+  // ── Content sources ───────────────────────────────────────────────────────
+  const [activeSources, setActiveSources] = useState<Set<SourceId>>(
+    () => new Set<SourceId>(["profile", "saved_repos", "tih"]),
+  );
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [tihCache, setTihCache] = useState<TIHIngestResponse | null>(null);
+  const [tihFetching, setTihFetching] = useState(false);
+  const [tihError, setTihError] = useState<string | null>(null);
+  // Refs let loadQuestions read the latest sources/cache without being recreated.
+  const activeSourcesRef = useRef(activeSources);
+  const tihCacheRef = useRef(tihCache);
+
   // ── Quick check state ─────────────────────────────────────────────────────
   const [qcState, setQcState] = useState<QuickCheckState>({ status: "idle" });
   const [qcRepoName, setQcRepoName] = useState("");
@@ -924,9 +1042,16 @@ export default function InterviewPrepPage() {
       return;
     }
 
-    // Cache hit: skip API call if profile (id + timestamp) + repos unchanged
+    // Active content sources for this generation (read from refs so this
+    // callback need not be recreated when they change).
+    const srcs = activeSourcesRef.current;
+    const tih = tihCacheRef.current;
+    const tihActive = srcs.has("tih") && !!tih;
+
+    // Cache hit: skip API call if profile (id + timestamp) + repos + sources unchanged
     const updatedAt = p.metadata?.updated_at ?? "";
     const repoSig = repoSignature(repos);
+    const srcSig = sourcesSignature(srcs, tih);
     const cache = readQuestionsCache();
     if (
       cache &&
@@ -934,7 +1059,8 @@ export default function InterviewPrepPage() {
       cache.profile_id === pid &&
       updatedAt &&
       cache.profile_updated_at === updatedAt &&
-      cache.repo_signature === repoSig
+      cache.repo_signature === repoSig &&
+      cache.sources_signature === srcSig
     ) {
       setLoadState({ status: "done", questions: cache.questions });
       return;
@@ -962,6 +1088,8 @@ export default function InterviewPrepPage() {
             target_companies: p.user.target_companies,
           },
           savedRepos: repos,
+          sources: [...srcs],
+          tihContent: tihActive ? tih!.content : [],
         }),
       });
     } catch (err) {
@@ -994,7 +1122,7 @@ export default function InterviewPrepPage() {
         return;
       }
 
-      if (updatedAt && pid) writeQuestionsCache(pid, updatedAt, repoSig, questions);
+      if (updatedAt && pid) writeQuestionsCache(pid, updatedAt, repoSig, srcSig, questions);
 
       // Read which repos were used as context from the response header
       const csHeader = res.headers.get("X-Context-Sources");
@@ -1007,11 +1135,75 @@ export default function InterviewPrepPage() {
     }
   }, []);
 
+  // ── Tech Interview Handbook fetch ──────────────────────────────────────────
+  const fetchTih = useCallback(
+    async (p: typeof activeProfile, pid: string | null) => {
+      setTihFetching(true);
+      setTihError(null);
+      try {
+        const res = await fetch("/api/sources/tech-interview-handbook", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!res.ok) {
+          let message = `HTTP ${res.status}`;
+          try {
+            const body = (await res.json()) as { error?: string };
+            message = body.error ?? message;
+          } catch { /* ignore */ }
+          setTihError(message);
+          return;
+        }
+        const data = (await res.json()) as TIHIngestResponse;
+        writeTihCache(data);
+        tihCacheRef.current = data;
+        setTihCache(data);
+        // Pull the freshly-ingested questions into the set if TIH is active.
+        if (activeSourcesRef.current.has("tih")) {
+          void loadQuestions(p, pid);
+        }
+      } catch (err) {
+        setTihError(String(err));
+      } finally {
+        setTihFetching(false);
+      }
+    },
+    [loadQuestions],
+  );
+
+  // Mount: read cached progress + TIH content, generate questions, and kick off
+  // a background TIH fetch when the cache is missing or stale (never blocking).
   useEffect(() => {
     setPractised(readProgress());
+    const tih = readTihCache();
+    tihCacheRef.current = tih;
+    setTihCache(tih);
     void loadQuestions(activeProfile, activeProfileId);
+    if (activeSourcesRef.current.has("tih") && isTihStale(tih)) {
+      void fetchTih(activeProfile, activeProfileId);
+    }
     return () => { fullAbortRef.current?.abort(); };
-  }, [loadQuestions, activeProfile, activeProfileId]);
+  }, [loadQuestions, fetchTih, activeProfile, activeProfileId]);
+
+  // ── Toggle a content source on/off ─────────────────────────────────────────
+  const toggleSource = useCallback(
+    (id: SourceId) => {
+      if (id === "profile") return; // profile is the base context — always on
+      const next = new Set(activeSourcesRef.current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      activeSourcesRef.current = next;
+      setActiveSources(next);
+
+      // Turning TIH on with no fresh cache → fetch (which regenerates on done).
+      if (id === "tih" && next.has("tih") && isTihStale(tihCacheRef.current)) {
+        void fetchTih(activeProfile, activeProfileId);
+        return;
+      }
+      void loadQuestions(activeProfile, activeProfileId);
+    },
+    [fetchTih, loadQuestions, activeProfile, activeProfileId],
+  );
 
   // ── Toggle practised ──────────────────────────────────────────────────────
   const togglePractised = useCallback((id: string) => {
@@ -1128,6 +1320,15 @@ export default function InterviewPrepPage() {
   const totalTarget = 20;
   const practisedCount = practised.size;
 
+  // ── Per-source question contribution (for the Content Sources panel) ───────
+  const tihCount = fullQuestions.filter(
+    (q) => q.origin === "Tech Interview Handbook",
+  ).length;
+  const repoCount = fullQuestions.filter(
+    (q) => q.origin !== "Tech Interview Handbook" && q.repo_reference,
+  ).length;
+  const generatedCount = fullQuestions.length - tihCount - repoCount;
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
@@ -1167,6 +1368,131 @@ export default function InterviewPrepPage() {
         {/* ── FULL PREP TAB ──────────────────────────────────────────────── */}
         {activeTab === "full" && (
           <>
+            {/* Content Sources panel */}
+            <div
+              className="mt-5 rounded-md border border-border bg-surface animate-fade-up"
+              style={{ animationDelay: "35ms" }}
+            >
+              <button
+                type="button"
+                onClick={() => setSourcesOpen((o) => !o)}
+                aria-expanded={sourcesOpen}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="font-mono text-[10px] font-semibold uppercase tracking-widest text-ink-muted">
+                    Content Sources
+                  </span>
+                  <span className="text-[0.8125rem] text-ink-secondary">
+                    {activeSources.size} active
+                    {tihFetching && (
+                      <span className="ml-1.5 animate-pulse text-ink-muted">
+                        · loading Tech Interview Handbook…
+                      </span>
+                    )}
+                  </span>
+                </span>
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  className={`shrink-0 text-ink-muted transition-transform ${sourcesOpen ? "rotate-180" : ""}`}
+                  aria-hidden="true"
+                >
+                  <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+              {sourcesOpen && (
+                <div className="border-t border-border px-4 py-3">
+                  <ul className="flex flex-col gap-3">
+                    {/* Profile — always on */}
+                    <li className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-ink">Profile</p>
+                        <p className="text-[0.8125rem] text-ink-muted">
+                          Your programme, role, and skills — the base context.
+                        </p>
+                      </div>
+                      <ToggleSwitch
+                        on
+                        disabled
+                        onToggle={() => {}}
+                        label="Profile (always on)"
+                      />
+                    </li>
+
+                    {/* Saved repos */}
+                    <li className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-ink">Saved repos</p>
+                        <p className="text-[0.8125rem] text-ink-muted">
+                          {savedRepos.length > 0
+                            ? `${savedRepos.length} saved repo${savedRepos.length === 1 ? "" : "s"} ground technical questions.`
+                            : "No saved repos yet."}
+                        </p>
+                      </div>
+                      <ToggleSwitch
+                        on={activeSources.has("saved_repos")}
+                        onToggle={() => toggleSource("saved_repos")}
+                        label="Toggle saved repos source"
+                      />
+                    </li>
+
+                    {/* Tech Interview Handbook */}
+                    <li className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-2 text-sm font-medium text-ink">
+                          Tech Interview Handbook
+                          <Badge tone="muted">TIH</Badge>
+                        </p>
+                        <p className="text-[0.8125rem] text-ink-muted">
+                          {tihFetching ? (
+                            <span className="animate-pulse">Loading Tech Interview Handbook…</span>
+                          ) : tihError ? (
+                            <span className="text-warning">Couldn’t load — {tihError}</span>
+                          ) : tihCache ? (
+                            <>
+                              {tihCache.content.length} topics · last fetched{" "}
+                              {new Date(tihCache.fetched_at).toLocaleDateString("en-SG", {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </>
+                          ) : (
+                            "Not fetched yet."
+                          )}
+                          {" · "}
+                          <button
+                            type="button"
+                            onClick={() => void fetchTih(activeProfile, activeProfileId)}
+                            disabled={tihFetching}
+                            className="font-medium text-primary transition-colors hover:text-primary-light disabled:opacity-50"
+                          >
+                            Refresh
+                          </button>
+                        </p>
+                      </div>
+                      <ToggleSwitch
+                        on={activeSources.has("tih")}
+                        onToggle={() => toggleSource("tih")}
+                        label="Toggle Tech Interview Handbook source"
+                      />
+                    </li>
+                  </ul>
+
+                  {/* Per-source contribution */}
+                  {(isDone || isStreaming) && fullQuestions.length > 0 && (
+                    <p className="mt-4 border-t border-border pt-3 font-mono text-[11px] text-ink-muted">
+                      {tihCount} from TIH · {generatedCount} generated · {repoCount} from saved repos
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Saved repos indicator */}
             <div
               className="mt-4 animate-fade-up"
