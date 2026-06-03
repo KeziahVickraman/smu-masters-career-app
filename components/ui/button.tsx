@@ -26,16 +26,16 @@ type ButtonAsLink = ButtonBaseProps &
 export type ButtonProps = ButtonAsButton | ButtonAsLink;
 
 const sizeClasses: Record<ButtonSize, string> = {
-  default: "h-9 px-4 text-sm",
-  compact: "h-8 px-3 text-sm",
+  default: "h-9 px-4 text-xs",
+  compact: "h-8 px-3 text-xs",
   hero: "h-11 px-5 text-sm",
 };
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary text-white hover:bg-primary-light border border-primary",
+    "bg-primary text-white hover:bg-primary-hover border border-primary",
   secondary:
-    "bg-transparent text-ink border border-border hover:border-border-strong",
+    "bg-transparent text-primary border border-border-strong hover:bg-paper-dark",
   danger:
     "bg-transparent text-accent border border-accent hover:bg-surface-muted",
 };
@@ -47,7 +47,7 @@ function buttonClasses(
   size: ButtonSize,
   className: string,
 ) {
-  return `inline-flex items-center justify-center rounded-[8px] font-sans font-medium transition-all duration-150 ease-in-out ${disabledClasses} ${sizeClasses[size]} ${variantClasses[variant]} ${className}`;
+  return `inline-flex items-center justify-center rounded-none font-sans font-semibold uppercase tracking-[0.05em] transition-all duration-150 ease-in-out ${disabledClasses} ${sizeClasses[size]} ${variantClasses[variant]} ${className}`;
 }
 
 export function Button({

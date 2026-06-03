@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
-import { DM_Mono, DM_Sans, Instrument_Serif } from "next/font/google";
+import { DM_Mono, Hanken_Grotesk, Newsreader } from "next/font/google";
 import { ProfileProvider } from "@/contexts/profile-context";
 import "./globals.css";
 
-const displayFont = Instrument_Serif({
+const displayFont = Newsreader({
   variable: "--font-display",
   subsets: ["latin"],
-  weight: "400",
+  weight: ["400", "600", "700"],
+  style: ["normal", "italic"],
 });
 
-const bodyFont = DM_Sans({
+const bodyFont = Hanken_Grotesk({
   variable: "--font-body",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600"],
@@ -37,7 +38,7 @@ export default function RootLayout({
       lang="en"
       className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-ink">
+      <body className="min-h-full flex flex-col bg-paper text-ink">
         <ProfileProvider>{children}</ProfileProvider>
       </body>
     </html>

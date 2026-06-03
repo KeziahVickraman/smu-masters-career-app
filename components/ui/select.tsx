@@ -48,7 +48,7 @@ export const SelectContent = React.forwardRef<
       ref={ref}
       position={position}
       className={cn(
-        "z-50 min-w-32 overflow-hidden rounded-md border border-border bg-surface shadow-[0_4px_12px_rgba(0,0,0,0.08)]",
+        "z-50 min-w-32 overflow-hidden rounded-md border border-border bg-surface",
         className,
       )}
       {...props}

@@ -1033,15 +1033,6 @@ export default function GitHubResourceSweeperPage() {
               </button>
             );
           })}
-
-          {!loading && query && (
-            <span className="ml-auto font-mono text-[11px] text-ink-muted">
-              query:{" "}
-              <span className="rounded bg-surface-muted px-1.5 py-0.5 text-ink-secondary">
-                {query}
-              </span>
-            </span>
-          )}
         </div>
 
         {/* Error banner */}

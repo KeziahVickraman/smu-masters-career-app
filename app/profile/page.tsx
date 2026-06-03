@@ -32,7 +32,7 @@ function DeleteDialog({
       onClick={onCancel}
     >
       <div
-        className="relative mx-4 w-full max-w-sm rounded-lg border border-border bg-surface p-6 shadow-lg"
+        className="relative mx-4 w-full max-w-sm rounded-lg border border-border bg-surface p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <p className="font-medium text-ink">Delete profile?</p>
@@ -74,7 +74,7 @@ function NoneCard({
     <div
       className={`relative flex flex-col rounded-lg border bg-surface p-5 transition-all duration-150 ${
         isActive
-          ? "border-primary shadow-[0_0_0_2px_rgba(0,33,71,0.15)]"
+          ? "border-primary"
           : "border-border hover:border-border-strong"
       }`}
     >
@@ -133,7 +133,7 @@ function ProfileCard({
     <div
       className={`relative flex flex-col rounded-lg border bg-surface p-5 transition-all duration-150 ${
         isActive
-          ? "border-primary shadow-[0_0_0_2px_rgba(0,33,71,0.15)]"
+          ? "border-primary"
           : "border-border hover:border-border-strong"
       }`}
     >

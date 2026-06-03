@@ -1,55 +1,93 @@
 @import "tailwindcss";
 
 :root {
-  --color-background: #f7f6f3;
+  /* Surfaces — warm paper tones, not clinical white */
+  --color-background: #f9f9f9;
+  --color-paper: #f8efe6;
+  --color-paper-dark: #e5e1da;
   --color-surface: #ffffff;
-  --color-surface-muted: #efefec;
-  --color-primary: #002147;
-  --color-primary-light: #1a3a6b;
-  --color-accent: #c8102e;
-  --color-text-primary: #111110;
-  --color-text-secondary: #6b6a67;
-  --color-text-muted: #a8a7a3;
-  --color-border: #e4e3df;
-  --color-border-strong: #c9c8c4;
+  --color-surface-muted: #f3f3f4;
+
+  /* Ink — charcoal not pure black */
+  --color-text-primary: #1a1c1c;
+  --color-text-secondary: #46464b;
+  --color-text-muted: #77767c;
+
+  /* Primary — deep charcoal ink */
+  --color-primary: #1d1f27;
+  --color-primary-light: #05070e; /* hover/near-black — name kept for existing utilities */
+  --color-primary-hover: #05070e;
+
+  /* Accent — SMU red, used sparingly */
+  --color-accent: #c22032;
+
+  /* Borders */
+  --color-border: #c7c6cb;
+  --color-border-strong: #46464b;
+
+  /* Semantic */
   --color-success: #1a7f4b;
   --color-warning: #b45309;
-  --color-info: #1d4ed8;
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 20px;
+  --color-info: #204986;
+
+  /* Source badge colours */
+  --color-badge-wso: #b45309;
+  --color-badge-pl: #1a7f4b;
+  --color-badge-tih: #204986;
+  --color-badge-generated: #46464b;
+
+  /* Shape — sharp edges, 2px only for pills/badges */
+  --radius-sm: 2px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-pill: 2px;
 }
 
 @theme inline {
-  --color-background: #f7f6f3;
+  --color-background: #f9f9f9;
+  --color-paper: #f8efe6;
+  --color-paper-dark: #e5e1da;
   --color-surface: #ffffff;
-  --color-surface-muted: #efefec;
-  --color-primary: #002147;
-  --color-primary-light: #1a3a6b;
-  --color-accent: #c8102e;
-  --color-ink: #111110;
-  --color-ink-secondary: #6b6a67;
-  --color-ink-muted: #a8a7a3;
-  --color-border: #e4e3df;
-  --color-border-strong: #c9c8c4;
+  --color-surface-muted: #f3f3f4;
+  --color-primary: #1d1f27;
+  --color-primary-light: #05070e;
+  --color-primary-hover: #05070e;
+  --color-accent: #c22032;
+  --color-ink: #1a1c1c;
+  --color-ink-secondary: #46464b;
+  --color-ink-muted: #77767c;
+  --color-border: #c7c6cb;
+  --color-border-strong: #46464b;
   --color-success: #1a7f4b;
   --color-warning: #b45309;
-  --color-info: #1d4ed8;
+  --color-info: #204986;
+  --color-badge-wso: #b45309;
+  --color-badge-pl: #1a7f4b;
+  --color-badge-tih: #204986;
+  --color-badge-generated: #46464b;
   --font-display: var(--font-display), Georgia, serif;
-  --font-sans: var(--font-body), "DM Sans", sans-serif;
+  --font-sans: var(--font-body), "Hanken Grotesk", sans-serif;
   --font-mono: var(--font-mono), "DM Mono", monospace;
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 20px;
+  --radius-sm: 2px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  /* No shadows — flat printed surfaces */
+  --shadow-2xs: none;
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-xl: none;
+  --shadow-2xl: none;
 }
 
 body {
-  background: var(--color-background);
+  background: var(--color-paper);
   color: var(--color-text-primary);
-  font-family: var(--font-body), "DM Sans", sans-serif;
-  font-size: 0.9375rem;
+  font-family: var(--font-body), "Hanken Grotesk", sans-serif;
+  font-size: 1rem;
   line-height: 1.5;
 }
 
@@ -75,18 +113,12 @@ body {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.06),
-    0 1px 2px rgba(0, 0, 0, 0.04);
   padding: 20px 24px;
-  transition:
-    box-shadow 150ms ease,
-    transform 150ms ease;
+  transition: border-color 150ms ease;
 }
 
 .card-interactive:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  transform: translateY(-1px);
+  border-color: var(--color-border-strong);
 }
 
 @keyframes fadeUp {

@@ -268,7 +268,7 @@ export default function JobBoardPage() {
 
   function tabCls(active: boolean) {
     return `rounded-md px-4 py-1.5 text-sm font-medium transition-all duration-150 ${
-      active ? "bg-surface text-ink shadow-sm" : "text-ink-muted hover:text-ink"
+      active ? "bg-surface text-ink" : "text-ink-muted hover:text-ink"
     }`;
   }
 

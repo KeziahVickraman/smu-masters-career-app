@@ -326,7 +326,7 @@ const CATEGORIES: CategoryFilter[] = [
 function tabCls(active: boolean) {
   return `rounded-md px-4 py-1.5 text-sm font-medium transition-all duration-150 ${
     active
-      ? "bg-surface shadow-sm text-ink"
+      ? "bg-surface text-ink"
       : "text-ink-secondary hover:text-ink"
   }`;
 }
@@ -356,7 +356,7 @@ function ToggleSwitch({
       } ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
     >
       <span
-        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-150 ${
+        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-150 ${
           on ? "translate-x-4" : "translate-x-0.5"
         }`}
       />
@@ -641,7 +641,7 @@ function ExportModal({
       onClick={onClose}
     >
       <div
-        className="relative mx-4 w-full max-w-sm rounded-lg border border-border bg-surface p-6 shadow-lg"
+        className="relative mx-4 w-full max-w-sm rounded-lg border border-border bg-surface p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -2035,7 +2035,7 @@ export default function InterviewPrepPage() {
           <button
             type="button"
             onClick={() => setShowExport(true)}
-            className="inline-flex h-10 items-center gap-2 rounded-md border border-primary bg-primary px-4 text-sm font-medium text-white shadow-md transition-all duration-150 hover:bg-primary-light"
+            className="inline-flex h-10 items-center gap-2 rounded-md border border-primary bg-primary px-4 text-sm font-medium text-white transition-all duration-150 hover:bg-primary-light"
           >
             <svg
               width="14"
